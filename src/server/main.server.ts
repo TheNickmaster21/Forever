@@ -1,4 +1,4 @@
-import { GlobalSettings, ReplicationFunction } from 'shared/module';
+import { GlobalSettings, ReplicationEvent } from 'shared/module';
 
 import { CrochetServer } from '@rbxts/crochet';
 
@@ -9,8 +9,7 @@ const voxelFolder = new Instance('Folder');
 voxelFolder.Name = 'Voxels';
 voxelFolder.Parent = game.Workspace;
 
-CrochetServer.registerRemoteFunction(ReplicationFunction);
-CrochetServer.bindServerSideRemoteFunction(ReplicationFunction, (player, x, z) => {
+function getVoxel(x: number, z: number): number {
     if (voxels[x] === undefined) {
         voxels[x] = [];
     }
@@ -22,6 +21,15 @@ CrochetServer.bindServerSideRemoteFunction(ReplicationFunction, (player, x, z) =
     }
 
     return voxels[x][z];
+}
+
+CrochetServer.registerRemoteEvent(ReplicationEvent);
+const replicate = CrochetServer.getRemoteEventFunction(ReplicationEvent);
+CrochetServer.bindRemoteEvent(ReplicationEvent, (player, x, z) => {
+    task.spawn(() => {
+        const voxelValue = getVoxel(x, z);
+        replicate(player, x, z, voxelValue);
+    });
 });
 
 CrochetServer.start();

@@ -1,4 +1,4 @@
-import { GlobalSettings, ReplicationFunction } from 'shared/module';
+import { GlobalSettings, ReplicationEvent } from 'shared/module';
 
 import { CrochetClient } from '@rbxts/crochet';
 
@@ -25,7 +25,7 @@ function characterAtGrid(): [number, number] {
 
 const fetchingVoxels: boolean[][] = [];
 
-const replicationFunction = CrochetClient.getServerSideRemoteFunction(ReplicationFunction);
+const replicationEventFunction = CrochetClient.getRemoteEventFunction(ReplicationEvent);
 
 function getVoxel(x: number, z: number) {
     if (!fetchingVoxels[x]) {
@@ -38,20 +38,20 @@ function getVoxel(x: number, z: number) {
 
     fetchingVoxels[x][z] = true;
 
+    // TODO fix issue validating type gaurds for optional parameter
+    replicationEventFunction(x, z, 0);
+}
+
+CrochetClient.bindRemoteEvent(ReplicationEvent, (x, z, value) => {
+    if (value === undefined) {
+        return;
+    }
+
     if (!knownVoxels[x]) {
         knownVoxels[x] = [];
     }
 
-    knownVoxels[x][z] = replicationFunction(x, z);
-}
-
-game.GetService('RunService').Stepped.Connect((t, deltaT) => {
-    const [middleX, middleZ] = characterAtGrid();
-    for (let x = middleX - GlobalSettings.minShownSize / 2; x <= middleX + GlobalSettings.minShownSize / 2; x++) {
-        for (let z = middleZ - GlobalSettings.minShownSize / 2; z <= middleZ + GlobalSettings.minShownSize / 2; z++) {
-            task.spawn(getVoxel, x, z);
-        }
-    }
+    knownVoxels[x][z] = value;
 });
 
 function voxelName(x: number, z: number): string {
@@ -94,8 +94,13 @@ function collectGarbage() {
     }
 }
 
-game.GetService('RunService').Heartbeat.Connect((step) => {
+game.GetService('RunService').Stepped.Connect((t, deltaT) => {
     const [middleX, middleZ] = characterAtGrid();
+    for (let x = middleX - GlobalSettings.minShownSize / 2; x <= middleX + GlobalSettings.minShownSize / 2; x++) {
+        for (let z = middleZ - GlobalSettings.minShownSize / 2; z <= middleZ + GlobalSettings.minShownSize / 2; z++) {
+            task.spawn(getVoxel, x, z);
+        }
+    }
 
     for (let x = middleX - GlobalSettings.minShownSize / 2; x <= middleX + GlobalSettings.minShownSize / 2; x++) {
         for (let z = middleZ - GlobalSettings.minShownSize / 2; z <= middleZ + GlobalSettings.minShownSize / 2; z++) {
