@@ -38,8 +38,7 @@ function getVoxel(x: number, z: number) {
 
     fetchingVoxels[x][z] = true;
 
-    // TODO fix issue validating type gaurds for optional parameter
-    replicationEventFunction(x, z, 0);
+    replicationEventFunction(x, z);
 }
 
 CrochetClient.bindRemoteEvent(ReplicationEvent, (x, z, value) => {

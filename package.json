@@ -18,12 +18,12 @@
         "eslint": "^8.17.0",
         "eslint-config-prettier": "^8.5.0",
         "eslint-plugin-prettier": "^4.0.0",
-        "eslint-plugin-roblox-ts": "^0.0.32",
+        "eslint-plugin-roblox-ts": "^0.0.33",
         "prettier": "^2.7.1",
         "typescript": "^4.7.4"
     },
     "dependencies": {
-        "@rbxts/crochet": "^1.0.2",
+        "@rbxts/crochet": "^1.0.3",
         "@rbxts/t": "^3.0.0"
     }
 }
