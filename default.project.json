@@ -34,6 +34,23 @@
             "$className": "Workspace",
             "$properties": {
                 "FilteringEnabled": true
+            },
+            "SpawnLocation": {
+                "$className": "SpawnLocation",
+                "$properties": {
+                    "Anchored": true,
+                    "Size": [12, 1, 12],
+                    "Position": [0, 27, 0],
+                    "TopSurface": "Smooth",
+                    "BottomSurface": "Smooth"
+                },
+                "Decal": {
+                    "$className": "Decal",
+                    "$properties": {
+                        "Face": "Top",
+                        "Texture": "rbxasset://textures/SpawnLocation.png"
+                    }
+                }
             }
         },
         "HttpService": {
