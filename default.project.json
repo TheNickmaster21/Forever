@@ -23,6 +23,9 @@
         },
         "StarterPlayer": {
             "$className": "StarterPlayer",
+            "$properties": {
+                "CharacterWalkSpeed": 40
+            },
             "StarterPlayerScripts": {
                 "$className": "StarterPlayerScripts",
                 "TS": {

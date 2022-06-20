@@ -7,15 +7,18 @@ export const ReplicationEvent = new EventDefinition<[x: number, z: number, value
     t.optional(t.number)
 ]);
 
+const easyScale = 1;
+
 export const GlobalSettings = {
     worldHeight: 15,
+    worldHeightIncrement: 4,
 
     gridWidth: 4,
     gridHeight: 8,
 
-    minShownSize: 40,
-    idealShownSize: 60,
+    minShownSize: 40 * easyScale,
+    idealShownSize: 50 * easyScale,
 
-    garbageTriggerPartCount: 5000,
-    garbageCollectionIncrement: 10
+    garbageTriggerPartCount: math.pow(50 * easyScale, 2) * math.pi,
+    garbageCollectionIncrement: 10 * easyScale
 };

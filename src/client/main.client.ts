@@ -60,7 +60,9 @@ function voxelName(x: number, z: number): string {
 function createVoxel(x: number, z: number) {
     const voxel = new Instance('Part');
     voxel.Name = voxelName(x, z);
-    voxel.Size = new Vector3(GlobalSettings.gridWidth, GlobalSettings.gridHeight, GlobalSettings.gridWidth);
+    voxel.Size = new Vector3(GlobalSettings.gridWidth, GlobalSettings.worldHeightIncrement, GlobalSettings.gridWidth);
+    voxel.TopSurface = Enum.SurfaceType.Smooth;
+    voxel.BottomSurface = Enum.SurfaceType.Smooth;
     voxel.BrickColor = BrickColor.random();
     voxel.Anchored = true;
     voxel.Position = new Vector3(
@@ -72,13 +74,13 @@ function createVoxel(x: number, z: number) {
 }
 
 function collectGarbage() {
-    print("It's garbin time!");
     const charPos = characterPosition();
     const voxels = voxelFolder.GetChildren();
     const target = math.min(
         GlobalSettings.garbageCollectionIncrement,
         voxels.size() - GlobalSettings.garbageTriggerPartCount
     );
+    print("It's garbin time!", target);
     let collected = 0;
     for (const voxel of voxels) {
         if (
@@ -86,7 +88,7 @@ function collectGarbage() {
             GlobalSettings.idealShownSize * GlobalSettings.gridWidth
         ) {
             voxel.Destroy();
-            if (++collected === target) {
+            if (++collected > target) {
                 return;
             }
         }

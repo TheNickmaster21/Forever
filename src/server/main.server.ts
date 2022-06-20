@@ -15,9 +15,10 @@ function getVoxel(x: number, z: number): number {
     }
 
     if (voxels[x][z] === undefined) {
-        voxels[x][z] =
-            GlobalSettings.worldHeight * math.noise(x / 10, z / 10, seed) +
-            (GlobalSettings.worldHeight * math.noise(x / 15, z / 15, seed + 100)) / 2;
+        let height = GlobalSettings.worldHeight * math.noise(x / 10, z / 10, seed);
+        height += (GlobalSettings.worldHeight * math.noise(x / 15, z / 15, seed + 100)) / 2;
+        height = math.round(height / GlobalSettings.worldHeightIncrement) * GlobalSettings.worldHeightIncrement;
+        voxels[x][z] = height;
     }
 
     return voxels[x][z];
