@@ -1,5 +1,9 @@
 export class Simple2DArray<V> {
-    private array: V[][] = [];
+    private array: V[][];
+
+    constructor(initialArray?: V[][]) {
+        this.array = initialArray ?? [];
+    }
 
     public set(keyX: number, keyY: number, value: V): void {
         this.checkAndCreateKeyX(keyX);
@@ -23,6 +27,10 @@ export class Simple2DArray<V> {
     public has(keyX: number, keyY: number): boolean {
         this.checkAndCreateKeyX(keyX);
         return this.array[keyX][keyY] !== undefined;
+    }
+
+    public raw(): V[][] {
+        return this.array;
     }
 
     private checkAndCreateKeyX(keyX: number): void {
