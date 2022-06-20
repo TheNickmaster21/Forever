@@ -1,13 +1,12 @@
 import { GlobalSettings, ReplicationEvent } from 'shared/module';
 
 import { CrochetClient } from '@rbxts/crochet';
+import { Simple2DArray } from 'shared/simple-2d-array';
 
 CrochetClient.start().await();
 
 const player = game.GetService('Players').LocalPlayer;
 const character = player.Character ?? player.CharacterAdded.Wait()[0];
-
-const knownVoxels: number[][] = [];
 
 const voxelFolder = game.Workspace.WaitForChild('Voxels');
 
@@ -23,34 +22,27 @@ function characterAtGrid(): [number, number] {
     return [middleX, middleZ];
 }
 
-const fetchingVoxels: boolean[][] = [];
+const fetchingVoxels = new Simple2DArray<boolean>();
 
 const replicationEventFunction = CrochetClient.getRemoteEventFunction(ReplicationEvent);
 
 function getVoxel(x: number, z: number) {
-    if (!fetchingVoxels[x]) {
-        fetchingVoxels[x] = [];
-    }
-
-    if (fetchingVoxels[x][z]) {
+    if (fetchingVoxels.get(x, z)) {
         return;
     }
 
-    fetchingVoxels[x][z] = true;
-
+    fetchingVoxels.set(x, z, true);
     replicationEventFunction(x, z);
 }
+
+const knownVoxels = new Simple2DArray<number>();
 
 CrochetClient.bindRemoteEvent(ReplicationEvent, (x, z, value) => {
     if (value === undefined) {
         return;
     }
 
-    if (!knownVoxels[x]) {
-        knownVoxels[x] = [];
-    }
-
-    knownVoxels[x][z] = value;
+    knownVoxels.set(x, z, value);
 });
 
 function voxelName(x: number, z: number): string {
@@ -58,6 +50,9 @@ function voxelName(x: number, z: number): string {
 }
 
 function createVoxel(x: number, z: number) {
+    const height = knownVoxels.get(x, z);
+    if (height === undefined) return;
+
     const voxel = new Instance('Part');
     voxel.Name = voxelName(x, z);
     voxel.Size = new Vector3(GlobalSettings.gridWidth, GlobalSettings.worldHeightIncrement, GlobalSettings.gridWidth);
@@ -67,7 +62,7 @@ function createVoxel(x: number, z: number) {
     voxel.Anchored = true;
     voxel.Position = new Vector3(
         x * GlobalSettings.gridWidth,
-        knownVoxels[x][z] - GlobalSettings.gridHeight / 2,
+        height - GlobalSettings.gridHeight / 2,
         z * GlobalSettings.gridWidth
     );
     voxel.Parent = voxelFolder;
@@ -105,7 +100,7 @@ game.GetService('RunService').Stepped.Connect((t, deltaT) => {
 
     for (let x = middleX - GlobalSettings.minShownSize / 2; x <= middleX + GlobalSettings.minShownSize / 2; x++) {
         for (let z = middleZ - GlobalSettings.minShownSize / 2; z <= middleZ + GlobalSettings.minShownSize / 2; z++) {
-            if (knownVoxels[x] && knownVoxels[x][z] !== undefined && !voxelFolder.FindFirstChild(voxelName(x, z))) {
+            if (!voxelFolder.FindFirstChild(voxelName(x, z))) {
                 createVoxel(x, z);
             }
         }
