@@ -137,18 +137,18 @@ game.GetService('RunService').Stepped.Connect((t, deltaT) => {
     const [middleX, middleY, middleZ] = characterAtChunk();
 
     for (
-        let x = math.floor(middleX - GlobalSettings.shownSize / 2);
-        x <= math.ceil(middleX + GlobalSettings.shownSize / 2);
+        let x = math.floor(middleX - GlobalSettings.shownRadius);
+        x <= math.ceil(middleX + GlobalSettings.shownRadius);
         x++
     ) {
         for (
-            let y = math.floor(middleY - GlobalSettings.shownSize / 2);
-            y <= math.ceil(middleY + GlobalSettings.shownSize / 2);
+            let y = math.floor(middleY - GlobalSettings.shownRadius);
+            y <= math.ceil(middleY + GlobalSettings.shownRadius);
             y++
         ) {
             for (
-                let z = math.floor(middleZ - GlobalSettings.shownSize / 2);
-                z <= math.ceil(middleZ + GlobalSettings.shownSize / 2);
+                let z = math.floor(middleZ - GlobalSettings.shownRadius);
+                z <= math.ceil(middleZ + GlobalSettings.shownRadius);
                 z++
             ) {
                 task.spawn(fetchChunk, x, y, z);
@@ -157,18 +157,18 @@ game.GetService('RunService').Stepped.Connect((t, deltaT) => {
     }
 
     for (
-        let x = math.floor(middleX - GlobalSettings.shownSize / 2);
-        x <= math.ceil(middleX + GlobalSettings.shownSize / 2);
+        let x = math.floor(middleX - GlobalSettings.shownRadius);
+        x <= math.ceil(middleX + GlobalSettings.shownRadius);
         x++
     ) {
         for (
-            let y = math.floor(middleY - GlobalSettings.shownSize / 2);
-            y <= math.ceil(middleY + GlobalSettings.shownSize / 2);
+            let y = math.floor(middleY - GlobalSettings.shownRadius);
+            y <= math.ceil(middleY + GlobalSettings.shownRadius);
             y++
         ) {
             for (
-                let z = math.floor(middleZ - GlobalSettings.shownSize / 2);
-                z <= math.ceil(middleZ + GlobalSettings.shownSize / 2);
+                let z = math.floor(middleZ - GlobalSettings.shownRadius);
+                z <= math.ceil(middleZ + GlobalSettings.shownRadius);
                 z++
             ) {
                 if (!voxelFolder.FindFirstChild(voxelName(x, y, z))) {
