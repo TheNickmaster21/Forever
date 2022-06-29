@@ -1,37 +1,43 @@
 import { CrochetServer } from '@rbxts/crochet';
-import { Simple2DArray } from 'shared/simple-2d-array';
 import { Chunk } from 'shared/chunk';
 import { ReplicationEvent } from 'shared/events';
 import { GlobalSettings } from 'shared/global-settings';
+import { Simple3DArray } from 'shared/simple-3d-array';
 
 const seed = os.time();
 
-const chunks = new Simple2DArray<Chunk>();
+const chunks = new Simple3DArray<Chunk>();
 
 const voxelFolder = new Instance('Folder');
 voxelFolder.Name = 'Voxels';
 voxelFolder.Parent = game.Workspace;
 
-function getVoxel(x: number, z: number): number {
-    let height = GlobalSettings.worldHeight * math.noise(x / 10, z / 10, seed);
-    height += (GlobalSettings.worldHeight * math.noise(x / 15, z / 15, seed + 100)) / 2;
-    height = math.round(height / GlobalSettings.worldHeightIncrement) * GlobalSettings.worldHeightIncrement;
+function getVoxel(x: number, y: number, z: number): boolean {
+    let height = 10 * math.noise(x / 100, z / 100, seed);
+    height += 5 * math.noise(x / 15, z / 15, seed + 100);
 
-    return height;
+    return y < height;
 }
 
-function getChunk(chunkX: number, chunkZ: number): Chunk {
-    let chunk = chunks.get(chunkX, chunkZ);
+function getChunk(chunkX: number, chunkY: number, chunkZ: number): Chunk {
+    let chunk = chunks.get(chunkX, chunkY, chunkZ);
     if (chunk !== undefined) return chunk;
-    chunk = new Simple2DArray();
+    chunk = new Simple3DArray();
 
-    for (let voxelX = 0; voxelX < GlobalSettings.chunkWidth; voxelX++) {
-        for (let voxelZ = 0; voxelZ < GlobalSettings.chunkWidth; voxelZ++) {
-            chunk.set(
-                voxelX,
-                voxelZ,
-                getVoxel(chunkX * GlobalSettings.chunkWidth + voxelX, chunkZ * GlobalSettings.chunkWidth + voxelZ)
-            );
+    for (let voxelX = 0; voxelX < GlobalSettings.chunkSize; voxelX++) {
+        for (let voxelY = 0; voxelY < GlobalSettings.chunkSize; voxelY++) {
+            for (let voxelZ = 0; voxelZ < GlobalSettings.chunkSize; voxelZ++) {
+                chunk.set(
+                    voxelX,
+                    voxelY,
+                    voxelZ,
+                    getVoxel(
+                        chunkX * GlobalSettings.chunkSize + voxelX,
+                        chunkY * GlobalSettings.chunkSize + voxelY,
+                        chunkZ * GlobalSettings.chunkSize + voxelZ
+                    )
+                );
+            }
         }
     }
 
@@ -40,10 +46,10 @@ function getChunk(chunkX: number, chunkZ: number): Chunk {
 
 CrochetServer.registerRemoteEvent(ReplicationEvent);
 const replicate = CrochetServer.getRemoteEventFunction(ReplicationEvent);
-CrochetServer.bindRemoteEvent(ReplicationEvent, (player, x, z) => {
+CrochetServer.bindRemoteEvent(ReplicationEvent, (player, x, y, z) => {
     task.spawn(() => {
-        const chunk = getChunk(x, z);
-        replicate(player, x, z, chunk.raw());
+        const chunk = getChunk(x, y, z);
+        replicate(player, x, y, z, chunk.raw());
     });
 });
 

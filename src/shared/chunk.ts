@@ -1,3 +1,3 @@
-import { Simple2DArray } from './simple-2d-array';
+import { Simple3DArray } from './simple-3d-array';
 
-export type Chunk = Simple2DArray<number>;
+export type Chunk = Simple3DArray<boolean>;
