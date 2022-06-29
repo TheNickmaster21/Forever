@@ -114,12 +114,18 @@ function collectGarbage() {
     );
     print("It's garbin time!", target);
     let collected = 0;
-    for (const voxel of chunks) {
-        if (
-            charPos.sub((voxel as Model).WorldPivot.Position).Magnitude >
-            GlobalSettings.idealShownSize * GlobalSettings.chunkSize * GlobalSettings.voxelSize
-        ) {
-            voxel.Destroy();
+    const chunkDistances = [];
+    const chunkDistanceMap = new Map<number, Model>();
+    for (const chunk of chunks) {
+        const distance = charPos.sub((chunk as Model).WorldPivot.Position).Magnitude;
+        chunkDistances.push(distance);
+        chunkDistanceMap.set(distance, chunk as Model);
+    }
+    chunkDistances.sort();
+    for (let distanceIndex = chunkDistances.size() - 1; distanceIndex > -1; distanceIndex--) {
+        const chunk = chunkDistanceMap.get(chunkDistances[distanceIndex]);
+        if (chunk) {
+            chunk.Destroy();
             if (++collected > target) {
                 return;
             }
@@ -131,18 +137,18 @@ game.GetService('RunService').Stepped.Connect((t, deltaT) => {
     const [middleX, middleY, middleZ] = characterAtChunk();
 
     for (
-        let x = math.floor(middleX - GlobalSettings.minShownSize / 2);
-        x <= math.ceil(middleX + GlobalSettings.minShownSize / 2);
+        let x = math.floor(middleX - GlobalSettings.shownSize / 2);
+        x <= math.ceil(middleX + GlobalSettings.shownSize / 2);
         x++
     ) {
         for (
-            let y = math.floor(middleY - GlobalSettings.minShownSize / 2);
-            y <= math.ceil(middleY + GlobalSettings.minShownSize / 2);
+            let y = math.floor(middleY - GlobalSettings.shownSize / 2);
+            y <= math.ceil(middleY + GlobalSettings.shownSize / 2);
             y++
         ) {
             for (
-                let z = math.floor(middleZ - GlobalSettings.minShownSize / 2);
-                z <= math.ceil(middleZ + GlobalSettings.minShownSize / 2);
+                let z = math.floor(middleZ - GlobalSettings.shownSize / 2);
+                z <= math.ceil(middleZ + GlobalSettings.shownSize / 2);
                 z++
             ) {
                 task.spawn(fetchChunk, x, y, z);
@@ -151,18 +157,18 @@ game.GetService('RunService').Stepped.Connect((t, deltaT) => {
     }
 
     for (
-        let x = math.floor(middleX - GlobalSettings.minShownSize / 2);
-        x <= math.ceil(middleX + GlobalSettings.minShownSize / 2);
+        let x = math.floor(middleX - GlobalSettings.shownSize / 2);
+        x <= math.ceil(middleX + GlobalSettings.shownSize / 2);
         x++
     ) {
         for (
-            let y = math.floor(middleY - GlobalSettings.minShownSize / 2);
-            y <= math.ceil(middleY + GlobalSettings.minShownSize / 2);
+            let y = math.floor(middleY - GlobalSettings.shownSize / 2);
+            y <= math.ceil(middleY + GlobalSettings.shownSize / 2);
             y++
         ) {
             for (
-                let z = math.floor(middleZ - GlobalSettings.minShownSize / 2);
-                z <= math.ceil(middleZ + GlobalSettings.minShownSize / 2);
+                let z = math.floor(middleZ - GlobalSettings.shownSize / 2);
+                z <= math.ceil(middleZ + GlobalSettings.shownSize / 2);
                 z++
             ) {
                 if (!voxelFolder.FindFirstChild(voxelName(x, y, z))) {

@@ -6,8 +6,7 @@ export const GlobalSettings = {
 
     chunkSize: 8,
 
-    minShownSize: 3 * easyScale,
-    idealShownSize: 4 * easyScale,
+    shownSize: 3 * easyScale,
 
     garbageTriggerChunkCount: math.pow(8 * easyScale, 3),
     garbageCollectionIncrement: 10 * easyScale
