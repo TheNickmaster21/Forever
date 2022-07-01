@@ -1,8 +1,8 @@
 import { CrochetClient } from '@rbxts/crochet';
-import { Chunk } from 'shared/chunk';
+import { Chunk, worldPosToChunkPos } from 'shared/chunk';
 import { ReplicationEvent } from 'shared/events';
 import { GlobalSettings } from 'shared/global-settings';
-import { flat3DNeighborFunction } from 'shared/grid-utils';
+import { flat3DNeighborFunction, iterateInVectorRange } from 'shared/grid-utils';
 import { Simple3DArray } from 'shared/simple-3d-array';
 
 CrochetClient.start().await();
@@ -11,106 +11,93 @@ const player = game.GetService('Players').LocalPlayer;
 const character = player.Character ?? player.CharacterAdded.Wait()[0];
 const rootPart = character.WaitForChild('HumanoidRootPart') as Part;
 
-// TODO Rename
-const voxelFolder = game.Workspace.WaitForChild('Voxels');
+const chunkFolder = game.Workspace.WaitForChild('Chunks');
 
 function characterPosition() {
     return rootPart.Position;
 }
 
-function characterAtGrid(): [number, number, number] {
+function characterAtGrid(): Vector3 {
     const charPos = characterPosition();
-    const middleX = math.round(charPos.X / GlobalSettings.voxelSize);
-    const middleY = math.round(charPos.Y / GlobalSettings.voxelSize);
-    const middleZ = math.round(charPos.Z / GlobalSettings.voxelSize);
 
-    return [middleX, middleY, middleZ];
+    return new Vector3(
+        math.round(charPos.X / GlobalSettings.voxelSize),
+        math.round(charPos.Y / GlobalSettings.voxelSize),
+        math.round(charPos.Z / GlobalSettings.voxelSize)
+    );
 }
 
-function characterAtChunk(): [number, number, number] {
-    const [gridX, gridY, gridZ] = characterAtGrid();
-
-    return [
-        math.round(gridX / GlobalSettings.chunkSize),
-        math.round(gridY / GlobalSettings.chunkSize),
-        math.round(gridZ / GlobalSettings.chunkSize)
-    ];
+function characterAtChunk(): Vector3 {
+    const gridPosition = characterAtGrid();
+    return worldPosToChunkPos(gridPosition);
 }
 
 const fetchingChunks = new Simple3DArray<boolean>();
 
 const replicationEventFunction = CrochetClient.getRemoteEventFunction(ReplicationEvent);
 
-function fetchChunk(x: number, y: number, z: number) {
-    if (fetchingChunks.get(x, y, z)) {
+function fetchChunk(vector: Vector3): void {
+    if (fetchingChunks.vectorGet(vector)) {
         return;
     }
 
-    fetchingChunks.set(x, y, z, true);
-    print(`fetching ${x}, ${y}, ${z}`);
-    replicationEventFunction(x, y, z);
+    fetchingChunks.vectorSet(vector, true);
+    print(`fetching ${vectorName(vector)}`);
+    replicationEventFunction(vector);
 }
 
 const knownChunks = new Simple3DArray<Chunk>();
 
-CrochetClient.bindRemoteEvent(ReplicationEvent, (x, y, z, value) => {
+CrochetClient.bindRemoteEvent(ReplicationEvent, (vector, value) => {
     if (value === undefined) {
         return;
     }
 
-    knownChunks.set(x, y, z, new Simple3DArray(value));
+    knownChunks.vectorSet(vector, new Simple3DArray(value));
 });
 
-function voxelName(x: number, y: number, z: number): string {
-    return `${x},${y},${z}`;
+function vectorName(vector: Vector3): string {
+    return `${vector.X},${vector.Y},${vector.Z}`;
 }
 
-function createVoxel(x: number, y: number, z: number, parent: Model) {
+function createVoxel(worldPos: Vector3, parent: Model) {
     const voxel = new Instance('Part');
-    voxel.Name = voxelName(x, y, z);
+    voxel.Name = vectorName(worldPos);
     voxel.Size = new Vector3(GlobalSettings.voxelSize, GlobalSettings.voxelSize, GlobalSettings.voxelSize);
     voxel.TopSurface = Enum.SurfaceType.Smooth;
     voxel.BottomSurface = Enum.SurfaceType.Smooth;
     voxel.BrickColor = BrickColor.random();
     voxel.Anchored = true;
     voxel.Position = new Vector3(
-        x * GlobalSettings.voxelSize,
-        y * GlobalSettings.voxelSize,
-        z * GlobalSettings.voxelSize
+        worldPos.X * GlobalSettings.voxelSize,
+        worldPos.Y * GlobalSettings.voxelSize,
+        worldPos.Z * GlobalSettings.voxelSize
     );
     voxel.Parent = parent;
 }
 
-function createChunk(chunkX: number, chunkY: number, chunkZ: number) {
-    const chunk = knownChunks.get(chunkX, chunkY, chunkZ);
-    const neighborsExist = flat3DNeighborFunction(knownChunks, chunkX, chunkY, chunkZ, (chunk) => chunk !== undefined);
+function createChunk(chunkPos: Vector3) {
+    const chunk = knownChunks.vectorGet(chunkPos);
+    const neighborsExist = flat3DNeighborFunction(knownChunks, chunkPos, (chunk) => chunk !== undefined);
     const missingNeighbor = neighborsExist.includes(false);
     if (chunk === undefined || missingNeighbor) return;
 
     const model = new Instance('Model');
-    model.Name = voxelName(chunkX, chunkY, chunkZ);
+    model.Name = vectorName(chunkPos);
 
-    for (let voxelX = 0; voxelX < GlobalSettings.chunkSize; voxelX++) {
-        for (let voxelY = 0; voxelY < GlobalSettings.chunkSize; voxelY++) {
-            for (let voxelZ = 0; voxelZ < GlobalSettings.chunkSize; voxelZ++) {
-                if (chunk.get(voxelX, voxelY, voxelZ)) {
-                    createVoxel(
-                        chunkX * GlobalSettings.chunkSize + voxelX,
-                        chunkY * GlobalSettings.chunkSize + voxelY,
-                        chunkZ * GlobalSettings.chunkSize + voxelZ,
-                        model
-                    );
-                }
-            }
+    const chunkWorldOffset = chunkPos.mul(GlobalSettings.chunkSize);
+    iterateInVectorRange(Vector3.zero, Vector3.one.mul(GlobalSettings.chunkSize), (vector) => {
+        if (chunk.vectorGet(vector)) {
+            createVoxel(chunkWorldOffset.add(vector), model);
         }
-    }
+    });
 
-    model.Parent = voxelFolder;
+    model.Parent = chunkFolder;
 }
 
 function collectGarbage() {
     const charPos = characterPosition();
-    const chunks = voxelFolder.GetChildren();
+    const chunks = chunkFolder.GetChildren();
     const target = math.min(
         GlobalSettings.garbageCollectionIncrement,
         chunks.size() - GlobalSettings.garbageTriggerChunkCount
@@ -137,51 +124,25 @@ function collectGarbage() {
 }
 
 game.GetService('RunService').Stepped.Connect((t, deltaT) => {
-    const [middleX, middleY, middleZ] = characterAtChunk();
+    const chunkPos = characterAtChunk();
 
-    for (
-        let x = math.floor(middleX - GlobalSettings.shownRadius) - 1;
-        x <= math.ceil(middleX + GlobalSettings.shownRadius) + 1;
-        x++
-    ) {
-        for (
-            let y = math.floor(middleY - GlobalSettings.shownRadius) - 1;
-            y <= math.ceil(middleY + GlobalSettings.shownRadius) + 1;
-            y++
-        ) {
-            for (
-                let z = math.floor(middleZ - GlobalSettings.shownRadius) - 1;
-                z <= math.ceil(middleZ + GlobalSettings.shownRadius) + 1;
-                z++
-            ) {
-                task.spawn(fetchChunk, x, y, z);
+    iterateInVectorRange(
+        chunkPos.sub(Vector3.one.mul(GlobalSettings.shownRadius + 1)),
+        chunkPos.add(Vector3.one.mul(GlobalSettings.shownRadius + 1)),
+        (vector) => task.spawn(fetchChunk, vector)
+    );
+
+    iterateInVectorRange(
+        chunkPos.sub(Vector3.one.mul(GlobalSettings.shownRadius)),
+        chunkPos.add(Vector3.one.mul(GlobalSettings.shownRadius)),
+        (vector) => {
+            if (!chunkFolder.FindFirstChild(vectorName(vector))) {
+                createChunk(vector);
             }
         }
-    }
+    );
 
-    for (
-        let x = math.floor(middleX - GlobalSettings.shownRadius);
-        x <= math.ceil(middleX + GlobalSettings.shownRadius);
-        x++
-    ) {
-        for (
-            let y = math.floor(middleY - GlobalSettings.shownRadius);
-            y <= math.ceil(middleY + GlobalSettings.shownRadius);
-            y++
-        ) {
-            for (
-                let z = math.floor(middleZ - GlobalSettings.shownRadius);
-                z <= math.ceil(middleZ + GlobalSettings.shownRadius);
-                z++
-            ) {
-                if (!voxelFolder.FindFirstChild(voxelName(x, y, z))) {
-                    createChunk(x, y, z);
-                }
-            }
-        }
-    }
-
-    if (voxelFolder.GetChildren().size() > GlobalSettings.garbageTriggerChunkCount) {
+    if (chunkFolder.GetChildren().size() > GlobalSettings.garbageTriggerChunkCount) {
         task.spawn(collectGarbage);
     }
 });

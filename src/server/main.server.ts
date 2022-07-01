@@ -8,9 +8,9 @@ const seed = os.time();
 
 const chunks = new Simple3DArray<Chunk>();
 
-const voxelFolder = new Instance('Folder');
-voxelFolder.Name = 'Voxels';
-voxelFolder.Parent = game.Workspace;
+const chunkFolder = new Instance('Folder');
+chunkFolder.Name = 'Chunks';
+chunkFolder.Parent = game.Workspace;
 
 function getVoxel(x: number, y: number, z: number): boolean {
     let height = 10 * math.noise(x / 100, z / 100, seed);
@@ -19,8 +19,8 @@ function getVoxel(x: number, y: number, z: number): boolean {
     return y < height;
 }
 
-function getChunk(chunkX: number, chunkY: number, chunkZ: number): Chunk {
-    let chunk = chunks.get(chunkX, chunkY, chunkZ);
+function getChunk(chunkPos: Vector3): Chunk {
+    let chunk = chunks.vectorGet(chunkPos);
     if (chunk !== undefined) return chunk;
     chunk = new Simple3DArray();
 
@@ -32,9 +32,9 @@ function getChunk(chunkX: number, chunkY: number, chunkZ: number): Chunk {
                     voxelY,
                     voxelZ,
                     getVoxel(
-                        chunkX * GlobalSettings.chunkSize + voxelX,
-                        chunkY * GlobalSettings.chunkSize + voxelY,
-                        chunkZ * GlobalSettings.chunkSize + voxelZ
+                        chunkPos.X * GlobalSettings.chunkSize + voxelX,
+                        chunkPos.Y * GlobalSettings.chunkSize + voxelY,
+                        chunkPos.Z * GlobalSettings.chunkSize + voxelZ
                     )
                 );
             }
@@ -46,10 +46,10 @@ function getChunk(chunkX: number, chunkY: number, chunkZ: number): Chunk {
 
 CrochetServer.registerRemoteEvent(ReplicationEvent);
 const replicate = CrochetServer.getRemoteEventFunction(ReplicationEvent);
-CrochetServer.bindRemoteEvent(ReplicationEvent, (player, x, y, z) => {
+CrochetServer.bindRemoteEvent(ReplicationEvent, (player, vector) => {
     task.spawn(() => {
-        const chunk = getChunk(x, y, z);
-        replicate(player, x, y, z, chunk.raw());
+        const chunk = getChunk(vector);
+        replicate(player, vector, chunk.raw());
     });
 });
 
