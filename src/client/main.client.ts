@@ -2,6 +2,7 @@ import { CrochetClient } from '@rbxts/crochet';
 import { Chunk } from 'shared/chunk';
 import { ReplicationEvent } from 'shared/events';
 import { GlobalSettings } from 'shared/global-settings';
+import { flat3DNeighborFunction } from 'shared/grid-utils';
 import { Simple3DArray } from 'shared/simple-3d-array';
 
 CrochetClient.start().await();
@@ -82,7 +83,9 @@ function createVoxel(x: number, y: number, z: number, parent: Model) {
 
 function createChunk(chunkX: number, chunkY: number, chunkZ: number) {
     const chunk = knownChunks.get(chunkX, chunkY, chunkZ);
-    if (chunk === undefined) return;
+    const neighborsExist = flat3DNeighborFunction(knownChunks, chunkX, chunkY, chunkZ, (chunk) => chunk !== undefined);
+    const missingNeighbor = neighborsExist.includes(false);
+    if (chunk === undefined || missingNeighbor) return;
 
     const model = new Instance('Model');
     model.Name = voxelName(chunkX, chunkY, chunkZ);
@@ -137,18 +140,18 @@ game.GetService('RunService').Stepped.Connect((t, deltaT) => {
     const [middleX, middleY, middleZ] = characterAtChunk();
 
     for (
-        let x = math.floor(middleX - GlobalSettings.shownRadius);
-        x <= math.ceil(middleX + GlobalSettings.shownRadius);
+        let x = math.floor(middleX - GlobalSettings.shownRadius) - 1;
+        x <= math.ceil(middleX + GlobalSettings.shownRadius) + 1;
         x++
     ) {
         for (
-            let y = math.floor(middleY - GlobalSettings.shownRadius);
-            y <= math.ceil(middleY + GlobalSettings.shownRadius);
+            let y = math.floor(middleY - GlobalSettings.shownRadius) - 1;
+            y <= math.ceil(middleY + GlobalSettings.shownRadius) + 1;
             y++
         ) {
             for (
-                let z = math.floor(middleZ - GlobalSettings.shownRadius);
-                z <= math.ceil(middleZ + GlobalSettings.shownRadius);
+                let z = math.floor(middleZ - GlobalSettings.shownRadius) - 1;
+                z <= math.ceil(middleZ + GlobalSettings.shownRadius) + 1;
                 z++
             ) {
                 task.spawn(fetchChunk, x, y, z);
