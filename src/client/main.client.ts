@@ -1,8 +1,8 @@
 import { CrochetClient } from '@rbxts/crochet';
-import { Chunk, worldPosToChunkPos } from 'shared/chunk';
+import { Chunk, chunkPosToWorldPos, worldPosToChunkOffset, worldPosToChunkPos } from 'shared/chunk';
 import { ReplicationEvent } from 'shared/events';
 import { GlobalSettings } from 'shared/global-settings';
-import { flat3DNeighborFunction, iterateInVectorRange } from 'shared/grid-utils';
+import { flat3DNeighborFunction, iterateInVectorRange, neighborOffsets } from 'shared/grid-utils';
 import { Simple3DArray } from 'shared/simple-3d-array';
 
 CrochetClient.start().await();
@@ -62,35 +62,43 @@ function vectorName(vector: Vector3): string {
 
 function createVoxel(worldPos: Vector3, parent: Model) {
     const voxel = new Instance('Part');
+    voxel.Transparency = 0.8;
     voxel.Name = vectorName(worldPos);
     voxel.Size = new Vector3(GlobalSettings.voxelSize, GlobalSettings.voxelSize, GlobalSettings.voxelSize);
     voxel.TopSurface = Enum.SurfaceType.Smooth;
     voxel.BottomSurface = Enum.SurfaceType.Smooth;
     voxel.BrickColor = BrickColor.random();
     voxel.Anchored = true;
-    voxel.Position = new Vector3(
-        worldPos.X * GlobalSettings.voxelSize,
-        worldPos.Y * GlobalSettings.voxelSize,
-        worldPos.Z * GlobalSettings.voxelSize
-    );
+    voxel.Position = worldPos.mul(Vector3.one.mul(GlobalSettings.voxelSize));
     voxel.Parent = parent;
+}
+
+function getVoxel(worldPos: Vector3): boolean | undefined {
+    const chunk = knownChunks.vectorGet(worldPosToChunkPos(worldPos));
+    if (!chunk) return undefined;
+    return chunk.vectorGet(worldPosToChunkOffset(worldPos));
 }
 
 function createChunk(chunkPos: Vector3) {
     const chunk = knownChunks.vectorGet(chunkPos);
-    const neighborsExist = flat3DNeighborFunction(knownChunks, chunkPos, (chunk) => chunk !== undefined);
-    const missingNeighbor = neighborsExist.includes(false);
+    const neighborChunksExist = flat3DNeighborFunction(knownChunks, chunkPos, (chunk) => chunk !== undefined);
+    const missingNeighbor = neighborChunksExist.includes(false);
     if (chunk === undefined || missingNeighbor) return;
 
     const model = new Instance('Model');
     model.Name = vectorName(chunkPos);
 
-    const chunkWorldOffset = chunkPos.mul(GlobalSettings.chunkSize);
-    iterateInVectorRange(Vector3.zero, Vector3.one.mul(GlobalSettings.chunkSize), (vector) => {
-        if (chunk.vectorGet(vector)) {
-            createVoxel(chunkWorldOffset.add(vector), model);
+    iterateInVectorRange(
+        chunkPosToWorldPos(chunkPos),
+        chunkPosToWorldPos(chunkPos).add(Vector3.one.mul(GlobalSettings.chunkSize)),
+        (worldPos) => {
+            const neighborsFull = neighborOffsets.map((offset) => !!getVoxel(worldPos.add(offset)));
+            const emptyNeighbor = neighborsFull.includes(false);
+            if (getVoxel(worldPos) && emptyNeighbor) {
+                createVoxel(worldPos, model);
+            }
         }
-    });
+    );
 
     model.Parent = chunkFolder;
 }

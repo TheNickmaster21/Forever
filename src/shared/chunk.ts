@@ -13,8 +13,16 @@ export function chunkPosAndOffsetToWorldPos(pos: Vector3, voxelOffset: Vector3):
 
 export function worldPosToChunkPos(pos: Vector3): Vector3 {
     return new Vector3(
-        math.round(pos.X / GlobalSettings.chunkSize),
-        math.round(pos.Y / GlobalSettings.chunkSize),
-        math.round(pos.Z / GlobalSettings.chunkSize)
+        math.floor(pos.X / GlobalSettings.chunkSize),
+        math.floor(pos.Y / GlobalSettings.chunkSize),
+        math.floor(pos.Z / GlobalSettings.chunkSize)
+    );
+}
+
+export function worldPosToChunkOffset(pos: Vector3): Vector3 {
+    return new Vector3(
+        pos.X % GlobalSettings.chunkSize,
+        pos.Y % GlobalSettings.chunkSize,
+        pos.Z % GlobalSettings.chunkSize
     );
 }
