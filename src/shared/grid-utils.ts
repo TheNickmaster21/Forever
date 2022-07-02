@@ -1,6 +1,6 @@
 import { Simple3DArray } from './simple-3d-array';
 
-export const neighborOffsets = [
+export const eightNeighborOffsets = [
     new Vector3(1, 0, 0),
     new Vector3(-1, 0, 0),
     new Vector3(0, 1, 0),
@@ -16,7 +16,7 @@ export function flat3DNeighborFunction<T, I>(
 ): T[] {
     const results: T[] = [];
 
-    neighborOffsets.forEach((offset) => {
+    eightNeighborOffsets.forEach((offset) => {
         results.push(func(simple3dArray.vectorGet(vector.add(offset))));
     });
 

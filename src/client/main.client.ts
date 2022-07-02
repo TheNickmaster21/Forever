@@ -2,7 +2,8 @@ import { CrochetClient } from '@rbxts/crochet';
 import { Chunk, chunkPosToWorldPos, worldPosToChunkOffset, worldPosToChunkPos } from 'shared/chunk';
 import { ReplicationEvent } from 'shared/events';
 import { GlobalSettings } from 'shared/global-settings';
-import { flat3DNeighborFunction, iterateInVectorRange, neighborOffsets } from 'shared/grid-utils';
+import { flat3DNeighborFunction, iterateInVectorRange, eightNeighborOffsets } from 'shared/grid-utils';
+import { LazyScheduler } from 'shared/lazy-scheduler';
 import { Simple3DArray } from 'shared/simple-3d-array';
 
 CrochetClient.start().await();
@@ -12,6 +13,11 @@ const character = player.Character ?? player.CharacterAdded.Wait()[0];
 const rootPart = character.WaitForChild('HumanoidRootPart') as Part;
 
 const chunkFolder = game.Workspace.WaitForChild('Chunks');
+
+const knownChunks = new Simple3DArray<Chunk>();
+const fetchingChunks = new Simple3DArray<boolean>();
+const renderingChunks = new Simple3DArray<boolean>();
+const renderedChunks = new Simple3DArray<boolean>();
 
 function characterPosition() {
     return rootPart.Position;
@@ -32,21 +38,15 @@ function characterAtChunk(): Vector3 {
     return worldPosToChunkPos(gridPosition);
 }
 
-const fetchingChunks = new Simple3DArray<boolean>();
-
 const replicationEventFunction = CrochetClient.getRemoteEventFunction(ReplicationEvent);
 
 function fetchChunk(vector: Vector3): void {
-    if (fetchingChunks.vectorGet(vector)) {
-        return;
-    }
+    if (fetchingChunks.vectorGet(vector)) return;
 
     fetchingChunks.vectorSet(vector, true);
-    print(`fetching ${vectorName(vector)}`);
+    // print(`fetching ${vectorName(vector)}`);
     replicationEventFunction(vector);
 }
-
-const knownChunks = new Simple3DArray<Chunk>();
 
 CrochetClient.bindRemoteEvent(ReplicationEvent, (vector, value) => {
     if (value === undefined) {
@@ -62,7 +62,7 @@ function vectorName(vector: Vector3): string {
 
 function createVoxel(worldPos: Vector3, parent: Model) {
     const voxel = new Instance('Part');
-    voxel.Transparency = 0.8;
+    // voxel.Transparency = .8;
     voxel.Name = vectorName(worldPos);
     voxel.Size = new Vector3(GlobalSettings.voxelSize, GlobalSettings.voxelSize, GlobalSettings.voxelSize);
     voxel.TopSurface = Enum.SurfaceType.Smooth;
@@ -80,38 +80,47 @@ function getVoxel(worldPos: Vector3): boolean | undefined {
 }
 
 function createChunk(chunkPos: Vector3) {
+    // Avoid double rendering a chunk
+    if (renderingChunks.vectorGet(chunkPos) || renderedChunks.vectorGet(chunkPos)) return;
+
     const chunk = knownChunks.vectorGet(chunkPos);
     const neighborChunksExist = flat3DNeighborFunction(knownChunks, chunkPos, (chunk) => chunk !== undefined);
     const missingNeighbor = neighborChunksExist.includes(false);
     if (chunk === undefined || missingNeighbor) return;
+    renderingChunks.vectorSet(chunkPos, true);
 
-    const model = new Instance('Model');
-    model.Name = vectorName(chunkPos);
+    terrainScheduler.queueTask(() => {
+        const model = new Instance('Model');
+        model.Name = vectorName(chunkPos);
 
-    iterateInVectorRange(
-        chunkPosToWorldPos(chunkPos),
-        chunkPosToWorldPos(chunkPos).add(Vector3.one.mul(GlobalSettings.chunkSize)),
-        (worldPos) => {
-            const neighborsFull = neighborOffsets.map((offset) => !!getVoxel(worldPos.add(offset)));
-            const emptyNeighbor = neighborsFull.includes(false);
-            if (getVoxel(worldPos) && emptyNeighbor) {
-                createVoxel(worldPos, model);
+        iterateInVectorRange(
+            chunkPosToWorldPos(chunkPos),
+            chunkPosToWorldPos(chunkPos).add(Vector3.one.mul(GlobalSettings.chunkSize)),
+            (worldPos) => {
+                const voxel = chunk.vectorGet(worldPosToChunkOffset(worldPos));
+                if (!voxel) return;
+                const neighborsFull = eightNeighborOffsets.map((offset) => !!getVoxel(worldPos.add(offset)));
+                const emptyNeighbor = neighborsFull.includes(false);
+                if (emptyNeighbor) {
+                    createVoxel(worldPos, model);
+                }
             }
-        }
-    );
+        );
 
-    model.Parent = chunkFolder;
+        model.Parent = chunkFolder;
+        renderedChunks.vectorSet(chunkPos, true);
+        renderingChunks.vectorDelete(chunkPos);
+    });
 }
 
 function collectGarbage() {
     const charPos = characterPosition();
     const chunks = chunkFolder.GetChildren();
-    const target = math.min(
+    let target = math.min(
         GlobalSettings.garbageCollectionIncrement,
         chunks.size() - GlobalSettings.garbageTriggerChunkCount
     );
-    print("It's garbin time!", target);
-    let collected = 0;
+    print("It's garbin time!", chunks.size(), GlobalSettings.garbageTriggerChunkCount, target);
     const chunkDistances = [];
     const chunkDistanceMap = new Map<number, Model>();
     for (const chunk of chunks) {
@@ -120,16 +129,18 @@ function collectGarbage() {
         chunkDistanceMap.set(distance, chunk as Model);
     }
     chunkDistances.sort();
-    for (let distanceIndex = chunkDistances.size() - 1; distanceIndex > -1; distanceIndex--) {
-        const chunk = chunkDistanceMap.get(chunkDistances[distanceIndex]);
+    while (target > 0) {
+        const chunk = chunkDistanceMap.get(chunkDistances.pop() ?? 0);
         if (chunk) {
             chunk.Destroy();
-            if (++collected > target) {
-                return;
-            }
+            target--;
+        } else {
+            break;
         }
     }
 }
+
+const terrainScheduler = new LazyScheduler();
 
 game.GetService('RunService').Stepped.Connect((t, deltaT) => {
     const chunkPos = characterAtChunk();
@@ -137,20 +148,18 @@ game.GetService('RunService').Stepped.Connect((t, deltaT) => {
     iterateInVectorRange(
         chunkPos.sub(Vector3.one.mul(GlobalSettings.shownRadius + 1)),
         chunkPos.add(Vector3.one.mul(GlobalSettings.shownRadius + 1)),
-        (vector) => task.spawn(fetchChunk, vector)
+        fetchChunk
     );
 
     iterateInVectorRange(
         chunkPos.sub(Vector3.one.mul(GlobalSettings.shownRadius)),
         chunkPos.add(Vector3.one.mul(GlobalSettings.shownRadius)),
-        (vector) => {
-            if (!chunkFolder.FindFirstChild(vectorName(vector))) {
-                createChunk(vector);
-            }
-        }
+        createChunk
     );
 
     if (chunkFolder.GetChildren().size() > GlobalSettings.garbageTriggerChunkCount) {
-        task.spawn(collectGarbage);
+        task.defer(collectGarbage);
     }
 });
+
+terrainScheduler.run();
