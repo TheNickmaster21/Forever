@@ -9,8 +9,12 @@ import { Simple3DArray } from 'shared/simple-3d-array';
 CrochetClient.start().await();
 
 const player = game.GetService('Players').LocalPlayer;
-const character = player.Character ?? player.CharacterAdded.Wait()[0];
-const rootPart = character.WaitForChild('HumanoidRootPart') as Part;
+let character = player.Character;
+let rootPart = character?.WaitForChild('HumanoidRootPart') as Part;
+player.CharacterAdded.Connect((char) => {
+    character = char;
+    rootPart = character?.WaitForChild('HumanoidRootPart') as Part;
+});
 
 const chunkFolder = game.Workspace.WaitForChild('Chunks');
 
@@ -143,6 +147,8 @@ function collectGarbage() {
 const terrainScheduler = new LazyScheduler();
 
 game.GetService('RunService').Stepped.Connect((t, deltaT) => {
+    if (!rootPart) return;
+
     const chunkPos = characterAtChunk();
 
     iterateInVectorRange(
