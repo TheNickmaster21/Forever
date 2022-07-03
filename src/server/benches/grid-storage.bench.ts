@@ -1,7 +1,4 @@
-interface Profiler {
-    Begin: (arg: string) => void;
-    End: () => void;
-}
+import { Profiler } from './profilter';
 
 const gridResolution = 20;
 
@@ -17,26 +14,26 @@ export = {
     },
 
     Functions: {
-        // A: (Profiler: Profiler, RandomNumber: number) => {
-        //     const grid = [];
+        A: (Profiler: Profiler, RandomNumber: number) => {
+            const grid = [];
 
-        //     for (let x = -gridResolution; x < gridResolution; x++) {
-        //         for (let y = -gridResolution; y < gridResolution; y++) {
-        //             for (let z = -gridResolution; z < gridResolution; z++) {
-        //                 const vector = new Vector3(x, y, z);
-        //                 grid[x + y * gridResolution + z * gridResolution * gridResolution] = vector;
-        //             }
-        //         }
-        //     }
+            for (let x = -gridResolution; x < gridResolution; x++) {
+                for (let y = -gridResolution; y < gridResolution; y++) {
+                    for (let z = -gridResolution; z < gridResolution; z++) {
+                        const vector = new Vector3(x, y, z);
+                        grid[x + y * gridResolution + z * gridResolution * gridResolution] = vector;
+                    }
+                }
+            }
 
-        //     for (let x = -gridResolution; x < gridResolution; x++) {
-        //         for (let y = -gridResolution; y < gridResolution; y++) {
-        //             for (let z = -gridResolution; z < gridResolution; z++) {
-        //                 const a = grid[x + y * gridResolution + z * gridResolution * gridResolution];
-        //             }
-        //         }
-        //     }
-        // },
+            for (let x = -gridResolution; x < gridResolution; x++) {
+                for (let y = -gridResolution; y < gridResolution; y++) {
+                    for (let z = -gridResolution; z < gridResolution; z++) {
+                        const a = grid[x + y * gridResolution + z * gridResolution * gridResolution];
+                    }
+                }
+            }
+        },
 
         B: (Profiler: Profiler, RandomNumber: number) => {
             const grid: boolean[][][] = [];
