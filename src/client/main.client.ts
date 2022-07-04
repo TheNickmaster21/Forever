@@ -24,6 +24,8 @@ const fetchingChunks = new Simple3DArray<boolean>();
 const renderingChunks = new Simple3DArray<boolean>();
 const renderedChunks = new Simple3DArray<boolean>();
 
+const terrainScheduler = new LazyScheduler();
+
 function characterPosition() {
     return rootPart.Position;
 }
@@ -112,40 +114,44 @@ function createChunk(chunkPos: Vector3) {
             }
         );
 
-        model.Parent = chunkFolder;
+        if (model.GetChildren().size() > 0) {
+            model.Parent = chunkFolder;
+        } else {
+            model.Destroy();
+        }
+
         renderedChunks.vectorSet(chunkPos, true);
         renderingChunks.vectorDelete(chunkPos);
     });
 }
 
 function collectGarbage() {
-    const charPos = characterPosition();
-    const chunks = chunkFolder.GetChildren();
-    let target = math.min(
-        GlobalSettings.garbageCollectionIncrement,
-        chunks.size() - GlobalSettings.garbageTriggerChunkCount
-    );
-    print("It's garbin time!", chunks.size(), GlobalSettings.garbageTriggerChunkCount, target);
-    const chunkDistances = [];
-    const chunkDistanceMap = new Map<number, Model>();
-    for (const chunk of chunks) {
-        const distance = charPos.sub((chunk as Model).WorldPivot.Position).Magnitude;
-        chunkDistances.push(distance);
-        chunkDistanceMap.set(distance, chunk as Model);
-    }
-    chunkDistances.sort();
-    while (target > 0) {
-        const chunk = chunkDistanceMap.get(chunkDistances.pop() ?? 0);
-        if (chunk) {
-            chunk.Destroy();
-            target--;
-        } else {
-            break;
+    terrainScheduler.queueTask(() => {
+        const charPos = characterPosition();
+        const chunks = chunkFolder.GetChildren();
+        let target = math.min(
+            GlobalSettings.garbageCollectionIncrement,
+            chunks.size() - GlobalSettings.garbageTriggerChunkCount
+        );
+        const chunkDistances = [];
+        const chunkDistanceMap = new Map<number, Model>();
+        for (const chunk of chunks) {
+            const distance = charPos.sub((chunk as Model).WorldPivot.Position).Magnitude;
+            chunkDistances.push(distance);
+            chunkDistanceMap.set(distance, chunk as Model);
         }
-    }
+        chunkDistances.sort();
+        while (target > 0) {
+            const chunk = chunkDistanceMap.get(chunkDistances.pop() ?? 0);
+            if (chunk) {
+                chunk.Destroy();
+                target--;
+            } else {
+                break;
+            }
+        }
+    });
 }
-
-const terrainScheduler = new LazyScheduler();
 
 game.GetService('RunService').Stepped.Connect((t, deltaT) => {
     if (!rootPart) return;
@@ -161,6 +167,6 @@ game.GetService('RunService').Stepped.Connect((t, deltaT) => {
     });
 
     if (chunkFolder.GetChildren().size() > GlobalSettings.garbageTriggerChunkCount) {
-        task.defer(collectGarbage);
+        collectGarbage();
     }
 });

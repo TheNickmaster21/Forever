@@ -24,7 +24,7 @@
         "StarterPlayer": {
             "$className": "StarterPlayer",
             "$properties": {
-                "CharacterWalkSpeed": 40
+                "CharacterWalkSpeed": 60
             },
             "StarterPlayerScripts": {
                 "$className": "StarterPlayerScripts",

@@ -4,8 +4,8 @@ export const GlobalSettings = {
 
     chunkSize: 16,
 
-    shownRadius: 10,
+    shownRadius: 12,
 
-    garbageTriggerChunkCount: math.pow(6 * 3, 3),
-    garbageCollectionIncrement: 100
+    garbageTriggerChunkCount: 600,
+    garbageCollectionIncrement: 10
 };
