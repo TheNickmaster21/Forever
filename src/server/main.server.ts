@@ -14,8 +14,8 @@ chunkFolder.Name = 'Chunks';
 chunkFolder.Parent = game.Workspace;
 
 function createRawVoxel(x: number, y: number, z: number): boolean {
-    let height = 10 * math.noise(x / 100, z / 100, seed);
-    height += 5 * math.noise(x / 15, z / 15, seed + 100);
+    let height = 15 * math.noise(x / 100, z / 100, seed);
+    height += 7 * math.noise(x / 15, z / 15, seed + 10);
 
     return y < height;
 }

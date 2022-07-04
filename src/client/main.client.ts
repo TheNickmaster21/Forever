@@ -148,6 +148,8 @@ function collectGarbage() {
             const chunk = chunkDistanceMap.get(chunkDistances.pop() ?? 0);
             if (chunk) {
                 chunk.Destroy();
+                const chunkCords = chunk.Name.split(',').map((cord) => tonumber(cord)!);
+                renderedChunks.vectorDelete(new Vector3(chunkCords[0], chunkCords[1], chunkCords[2]));
                 target--;
             } else {
                 break;
