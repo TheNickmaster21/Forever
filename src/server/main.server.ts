@@ -1,5 +1,5 @@
 import { CrochetServer } from '@rbxts/crochet';
-import { Chunk } from 'shared/chunk';
+import { Chunk, rawChunkFromChunk } from 'shared/chunk';
 import { ReplicationEvent } from 'shared/events';
 import { GlobalSettings } from 'shared/global-settings';
 import { LazyScheduler } from 'shared/lazy-scheduler';
@@ -21,25 +21,29 @@ function createRawVoxel(x: number, y: number, z: number): boolean {
 }
 
 function createChunk(chunkPos: Vector3): Chunk {
-    const chunk = new Simple3DArray<boolean>();
+    const voxels = new Simple3DArray<boolean>();
 
+    let empty = true;
+    let full = true;
     for (let voxelX = 0; voxelX < GlobalSettings.chunkSize; voxelX++) {
         for (let voxelY = 0; voxelY < GlobalSettings.chunkSize; voxelY++) {
             for (let voxelZ = 0; voxelZ < GlobalSettings.chunkSize; voxelZ++) {
-                chunk.set(
-                    voxelX,
-                    voxelY,
-                    voxelZ,
-                    createRawVoxel(
-                        chunkPos.X * GlobalSettings.chunkSize + voxelX,
-                        chunkPos.Y * GlobalSettings.chunkSize + voxelY,
-                        chunkPos.Z * GlobalSettings.chunkSize + voxelZ
-                    )
+                const voxel = createRawVoxel(
+                    chunkPos.X * GlobalSettings.chunkSize + voxelX,
+                    chunkPos.Y * GlobalSettings.chunkSize + voxelY,
+                    chunkPos.Z * GlobalSettings.chunkSize + voxelZ
                 );
+
+                voxels.set(voxelX, voxelY, voxelZ, voxel);
+                empty = empty && !voxel;
+                full = full && voxel;
             }
         }
     }
 
+    const chunk = { empty, full, voxels: !empty && !full ? voxels : undefined };
+    // TODO prevent chunks from being rendered more than once with generatingChunks lookup
+    chunks.vectorSet(chunkPos, chunk);
     return chunk;
 }
 
@@ -50,11 +54,11 @@ const replicate = CrochetServer.getRemoteEventFunction(ReplicationEvent);
 CrochetServer.bindRemoteEvent(ReplicationEvent, (player, chunkPos) => {
     const chunk = chunks.vectorGet(chunkPos);
     if (chunk !== undefined) {
-        replicate(player, chunkPos, chunk.raw());
+        replicate(player, chunkPos, rawChunkFromChunk(chunk));
     }
 
     generationScheduler.queueTask(() => {
-        replicate(player, chunkPos, createChunk(chunkPos).raw());
+        replicate(player, chunkPos, rawChunkFromChunk(createChunk(chunkPos)));
     });
 });
 

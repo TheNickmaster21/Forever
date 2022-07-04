@@ -1,5 +1,5 @@
 import { CrochetClient } from '@rbxts/crochet';
-import { Chunk, chunkPosToWorldPos, worldPosToChunkOffset, worldPosToChunkPos } from 'shared/chunk';
+import { Chunk, chunkFromRawChunk, chunkPosToWorldPos, worldPosToChunkOffset, worldPosToChunkPos } from 'shared/chunk';
 import { ReplicationEvent } from 'shared/events';
 import { GlobalSettings } from 'shared/global-settings';
 import { flat3DNeighborFunction, iterateInVectorRange, eightNeighborOffsets } from 'shared/grid-utils';
@@ -60,7 +60,7 @@ CrochetClient.bindRemoteEvent(ReplicationEvent, (vector, value) => {
         return;
     }
 
-    knownChunks.vectorSet(vector, new Simple3DArray(value));
+    knownChunks.vectorSet(vector, chunkFromRawChunk(value));
 });
 
 function vectorName(vector: Vector3): string {
@@ -83,7 +83,10 @@ function createVoxel(worldPos: Vector3, parent: Model) {
 function getVoxel(worldPos: Vector3): boolean | undefined {
     const chunk = knownChunks.vectorGet(worldPosToChunkPos(worldPos));
     if (!chunk) return undefined;
-    return chunk.vectorGet(worldPosToChunkOffset(worldPos));
+    if (chunk.empty) return false;
+    if (chunk.full) return true;
+    if (!chunk.voxels) return undefined;
+    return chunk.voxels.vectorGet(worldPosToChunkOffset(worldPos));
 }
 
 function createChunk(chunkPos: Vector3) {
@@ -104,7 +107,7 @@ function createChunk(chunkPos: Vector3) {
             chunkPosToWorldPos(chunkPos),
             chunkPosToWorldPos(chunkPos).add(Vector3.one.mul(GlobalSettings.chunkSize)),
             (worldPos) => {
-                const voxel = chunk.vectorGet(worldPosToChunkOffset(worldPos));
+                const voxel = !chunk.empty && (chunk.full || chunk.voxels?.vectorGet(worldPosToChunkOffset(worldPos)));
                 if (!voxel) return;
                 const neighborsFull = eightNeighborOffsets.map((offset) => !!getVoxel(worldPos.add(offset)));
                 const emptyNeighbor = neighborsFull.includes(false);

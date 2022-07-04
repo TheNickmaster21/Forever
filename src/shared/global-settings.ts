@@ -6,6 +6,6 @@ export const GlobalSettings = {
 
     shownRadius: 12,
 
-    garbageTriggerChunkCount: 600,
+    garbageTriggerChunkCount: 400,
     garbageCollectionIncrement: 10
 };

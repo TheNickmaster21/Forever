@@ -1,7 +1,31 @@
 import { GlobalSettings } from './global-settings';
 import { Simple3DArray } from './simple-3d-array';
 
-export type Chunk = Simple3DArray<boolean>;
+export interface Chunk {
+    empty: boolean;
+    full: boolean;
+    voxels?: Simple3DArray<boolean>;
+}
+
+export interface RawChunk {
+    empty: boolean;
+    full: boolean;
+    voxels?: boolean[][][];
+}
+
+export function chunkFromRawChunk(rawChunk: RawChunk): Chunk {
+    return {
+        ...rawChunk,
+        voxels: rawChunk.voxels ? new Simple3DArray(rawChunk.voxels) : undefined
+    };
+}
+
+export function rawChunkFromChunk(chunk: Chunk): RawChunk {
+    return {
+        ...chunk,
+        voxels: chunk.voxels?.raw()
+    };
+}
 
 export function chunkPosToWorldPos(pos: Vector3): Vector3 {
     return pos.mul(GlobalSettings.chunkSize);

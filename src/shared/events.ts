@@ -1,7 +1,8 @@
 import { EventDefinition } from '@rbxts/crochet';
 import { t } from '@rbxts/t';
+import { RawChunk } from './chunk';
 
-export const ReplicationEvent = new EventDefinition<[chunkPos: Vector3, value?: boolean[][][]]>('ReplicationEvent', [
+export const ReplicationEvent = new EventDefinition<[chunkPos: Vector3, value?: RawChunk]>('ReplicationEvent', [
     t.Vector3,
-    t.optional(t.array(t.array(t.array(t.boolean))))
+    t.optional(t.table) as t.check<RawChunk | undefined>
 ]);
