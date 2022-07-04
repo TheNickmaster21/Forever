@@ -44,7 +44,6 @@ function createChunk(chunkPos: Vector3): Chunk {
 }
 
 const generationScheduler = new LazyScheduler();
-generationScheduler.run();
 
 CrochetServer.registerRemoteEvent(ReplicationEvent);
 const replicate = CrochetServer.getRemoteEventFunction(ReplicationEvent);

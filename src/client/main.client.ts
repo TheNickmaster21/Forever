@@ -164,5 +164,3 @@ game.GetService('RunService').Stepped.Connect((t, deltaT) => {
         task.defer(collectGarbage);
     }
 });
-
-terrainScheduler.run();
