@@ -18,6 +18,10 @@ player.CharacterAdded.Connect((char) => {
 });
 
 const chunkFolder = game.Workspace.WaitForChild('Chunks');
+const recyclingFolder = new Instance('Folder');
+recyclingFolder.Name = 'RecyclingFolder';
+recyclingFolder.Parent = game.GetService('ReplicatedStorage');
+const recycledVoxels: Part[] = [];
 
 const knownChunks = new Simple3DArray<Chunk>();
 const fetchingChunks = new Simple3DArray<boolean>();
@@ -68,7 +72,7 @@ function vectorName(vector: Vector3): string {
 }
 
 function createVoxel(worldPos: Vector3, parent: Model) {
-    const voxel = new Instance('Part');
+    const voxel = recycledVoxels.pop() ?? new Instance('Part');
     // voxel.Transparency = .8;
     voxel.Name = vectorName(worldPos);
     voxel.Size = new Vector3(GlobalSettings.voxelSize, GlobalSettings.voxelSize, GlobalSettings.voxelSize);
@@ -147,6 +151,10 @@ function collectGarbage() {
         while (target > 0) {
             const chunk = chunkDistanceMap.get(chunkDistances.pop() ?? 0);
             if (chunk) {
+                chunk.GetChildren().forEach((voxel) => {
+                    voxel.Parent = recyclingFolder;
+                    recycledVoxels.push(voxel as Part);
+                });
                 chunk.Destroy();
                 const chunkCords = chunk.Name.split(',').map((cord) => tonumber(cord)!);
                 renderedChunks.vectorDelete(new Vector3(chunkCords[0], chunkCords[1], chunkCords[2]));
