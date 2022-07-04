@@ -4,6 +4,7 @@ import { ReplicationEvent } from 'shared/events';
 import { GlobalSettings } from 'shared/global-settings';
 import { flat3DNeighborFunction, iterateInVectorRange, eightNeighborOffsets } from 'shared/grid-utils';
 import { LazyScheduler } from 'shared/lazy-scheduler';
+import { manhattanSpread } from 'shared/manhattan-spread';
 import { Simple3DArray } from 'shared/simple-3d-array';
 
 CrochetClient.start().await();
@@ -151,17 +152,13 @@ game.GetService('RunService').Stepped.Connect((t, deltaT) => {
 
     const chunkPos = characterAtChunk();
 
-    iterateInVectorRange(
-        chunkPos.sub(Vector3.one.mul(GlobalSettings.shownRadius + 1)),
-        chunkPos.add(Vector3.one.mul(GlobalSettings.shownRadius + 1)),
-        fetchChunk
-    );
+    manhattanSpread(GlobalSettings.shownRadius + 1, (offset) => {
+        fetchChunk(chunkPos.add(offset));
+    });
 
-    iterateInVectorRange(
-        chunkPos.sub(Vector3.one.mul(GlobalSettings.shownRadius)),
-        chunkPos.add(Vector3.one.mul(GlobalSettings.shownRadius)),
-        createChunk
-    );
+    manhattanSpread(GlobalSettings.shownRadius, (offset) => {
+        createChunk(chunkPos.add(offset));
+    });
 
     if (chunkFolder.GetChildren().size() > GlobalSettings.garbageTriggerChunkCount) {
         task.defer(collectGarbage);
