@@ -1,4 +1,4 @@
-const TimeIncrement = 10 * 1e-3; // Time increment in seconds
+const TimeIncrement = 7 * 1e-3; // Time increment in seconds
 
 type Task = () => void;
 
@@ -13,8 +13,6 @@ export class LazyScheduler {
 
         this.running = true;
         const connection = game.GetService('RunService').Stepped.Connect((t, deltaT) => {
-            if (math.random() > 0.98) print(this.queue.size());
-
             if (this.queue.isEmpty()) {
                 connection.Disconnect();
                 this.running = false;

@@ -1,5 +1,11 @@
 import { CrochetClient } from '@rbxts/crochet';
-import { Chunk, chunkFromRawChunk, chunkPosToWorldPos, worldPosToChunkOffset, worldPosToChunkPos } from 'shared/chunk';
+import {
+    Chunk,
+    chunkFromRawChunk,
+    chunkPosToWorldPos,
+    worldPosToChunkVoxelOffset,
+    worldPosToChunkPos
+} from 'shared/chunk';
 import { ReplicationEvent } from 'shared/events';
 import { GlobalSettings } from 'shared/global-settings';
 import { flat3DNeighborFunction, iterateInVectorRange, eightNeighborOffsets } from 'shared/grid-utils';
@@ -27,6 +33,7 @@ const knownChunks = new Simple3DArray<Chunk>();
 const fetchingChunks = new Simple3DArray<boolean>();
 const renderingChunks = new Simple3DArray<boolean>();
 const renderedChunks = new Simple3DArray<boolean>();
+let renderedChunkModelCount = 0;
 
 const terrainScheduler = new LazyScheduler();
 
@@ -80,7 +87,7 @@ function createVoxel(worldPos: Vector3, parent: Model) {
     voxel.BottomSurface = Enum.SurfaceType.Smooth;
     voxel.BrickColor = BrickColor.random();
     voxel.Anchored = true;
-    voxel.Position = worldPos.mul(Vector3.one.mul(GlobalSettings.voxelSize));
+    voxel.Position = worldPos;
     voxel.Parent = parent;
 }
 
@@ -90,7 +97,7 @@ function getVoxel(worldPos: Vector3): boolean | undefined {
     if (chunk.empty) return false;
     if (chunk.full) return true;
     if (!chunk.voxels) return undefined;
-    return chunk.voxels.vectorGet(worldPosToChunkOffset(worldPos));
+    return chunk.voxels.vectorGet(worldPosToChunkVoxelOffset(worldPos));
 }
 
 function createChunk(chunkPos: Vector3) {
@@ -112,7 +119,8 @@ function createChunk(chunkPos: Vector3) {
             chunkPosToWorldPos(chunkPos),
             chunkPosToWorldPos(chunkPos).add(Vector3.one.mul(GlobalSettings.chunkSize)),
             (worldPos) => {
-                const voxel = !chunk.empty && (chunk.full || chunk.voxels?.vectorGet(worldPosToChunkOffset(worldPos)));
+                const voxel =
+                    !chunk.empty && (chunk.full || chunk.voxels?.vectorGet(worldPosToChunkVoxelOffset(worldPos)));
                 if (!voxel) return;
                 const neighborsFull = eightNeighborOffsets.map((offset) => !!getVoxel(worldPos.add(offset)));
                 const emptyNeighbor = neighborsFull.includes(false);
@@ -125,6 +133,7 @@ function createChunk(chunkPos: Vector3) {
         if (model.GetChildren().size() > 0) {
             model.WorldPivot = new CFrame(chunkPosToWorldPos(chunkPos));
             model.Parent = chunkFolder;
+            renderedChunkModelCount++;
         } else {
             model.Destroy();
         }
@@ -135,38 +144,40 @@ function createChunk(chunkPos: Vector3) {
     });
 }
 
-function collectGarbage() {
+let pendingGarbageCollection = 0;
+
+function maybeCollectGarbage() {
+    const target = math.min(
+        GlobalSettings.garbageCollectionIncrement,
+        renderedChunkModelCount - pendingGarbageCollection - GlobalSettings.garbageTriggerChunkCount
+    );
+    print(target, renderedChunkModelCount, pendingGarbageCollection, GlobalSettings.garbageTriggerChunkCount);
+    if (target <= 0) return;
+    pendingGarbageCollection += target;
     terrainScheduler.queueTask(() => {
         debug.profilebegin('Collect Garbage');
         const charPos = characterPosition();
-        const chunks = chunkFolder.GetChildren();
-        let target = math.min(
-            GlobalSettings.garbageCollectionIncrement,
-            chunks.size() - GlobalSettings.garbageTriggerChunkCount
-        );
         const chunkDistances = [];
         const chunkDistanceMap = new Map<number, Model>();
-        for (const chunk of chunks) {
+        for (const chunk of chunkFolder.GetChildren()) {
             const distance = charPos.sub((chunk as Model).WorldPivot.Position).Magnitude;
             chunkDistances.push(distance);
             chunkDistanceMap.set(distance, chunk as Model);
         }
         chunkDistances.sort();
-        while (target > 0) {
-            const chunk = chunkDistanceMap.get(chunkDistances.pop() ?? 0);
-            if (chunk) {
-                chunk.GetChildren().forEach((voxel) => {
-                    voxel.Parent = recyclingFolder;
-                    recycledVoxels.push(voxel as Part);
-                });
-                chunk.Destroy();
-                const chunkCords = chunk.Name.split(',').map((cord) => tonumber(cord)!);
-                renderedChunks.vectorDelete(new Vector3(chunkCords[0], chunkCords[1], chunkCords[2]));
-                target--;
-            } else {
-                break;
-            }
+        for (let i = target; i > 0; i--) {
+            const chunk = chunkDistanceMap.get(chunkDistances.pop() ?? -1);
+            if (!chunk) break;
+            chunk.GetChildren().forEach((voxel) => {
+                voxel.Parent = recyclingFolder;
+                recycledVoxels.push(voxel as Part);
+            });
+            chunk.Destroy();
+            const chunkCords = chunk.Name.split(',').map((cord) => tonumber(cord)!);
+            renderedChunks.vectorDelete(new Vector3(chunkCords[0], chunkCords[1], chunkCords[2]));
+            renderedChunkModelCount--;
         }
+        pendingGarbageCollection -= target;
         debug.profileend();
     });
 }
@@ -184,7 +195,5 @@ game.GetService('RunService').Stepped.Connect((t, deltaT) => {
         createChunk(chunkPos.add(offset));
     });
 
-    if (chunkFolder.GetChildren().size() > GlobalSettings.garbageTriggerChunkCount) {
-        collectGarbage();
-    }
+    maybeCollectGarbage();
 });

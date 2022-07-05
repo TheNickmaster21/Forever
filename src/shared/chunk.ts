@@ -28,22 +28,22 @@ export function rawChunkFromChunk(chunk: Chunk): RawChunk {
 }
 
 export function chunkPosToWorldPos(pos: Vector3): Vector3 {
-    return pos.mul(GlobalSettings.chunkSize);
+    return pos.mul(GlobalSettings.chunkSize * GlobalSettings.voxelSize);
 }
 
-export function chunkPosAndOffsetToWorldPos(pos: Vector3, voxelOffset: Vector3): Vector3 {
-    return chunkPosToWorldPos(pos).add(voxelOffset);
+export function chunkPosAndVoxelOffsetToWorldPos(pos: Vector3, voxelOffset: Vector3): Vector3 {
+    return chunkPosToWorldPos(pos).add(voxelOffset.mul(GlobalSettings.voxelSize));
 }
 
 export function worldPosToChunkPos(pos: Vector3): Vector3 {
     return new Vector3(
-        math.floor(pos.X / GlobalSettings.chunkSize),
-        math.floor(pos.Y / GlobalSettings.chunkSize),
-        math.floor(pos.Z / GlobalSettings.chunkSize)
+        math.floor(pos.X / (GlobalSettings.chunkSize * GlobalSettings.voxelSize)),
+        math.floor(pos.Y / (GlobalSettings.chunkSize * GlobalSettings.voxelSize)),
+        math.floor(pos.Z / (GlobalSettings.chunkSize * GlobalSettings.voxelSize))
     );
 }
 
-export function worldPosToChunkOffset(pos: Vector3): Vector3 {
+export function worldPosToChunkVoxelOffset(pos: Vector3): Vector3 {
     return new Vector3(
         pos.X % GlobalSettings.chunkSize,
         pos.Y % GlobalSettings.chunkSize,
