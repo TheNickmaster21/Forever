@@ -104,6 +104,7 @@ function createChunk(chunkPos: Vector3) {
     renderingChunks.vectorSet(chunkPos, true);
 
     terrainScheduler.queueTask(() => {
+        debug.profilebegin('Create Chunk');
         const model = new Instance('Model');
         model.Name = vectorName(chunkPos);
 
@@ -122,6 +123,7 @@ function createChunk(chunkPos: Vector3) {
         );
 
         if (model.GetChildren().size() > 0) {
+            model.WorldPivot = new CFrame(chunkPosToWorldPos(chunkPos));
             model.Parent = chunkFolder;
         } else {
             model.Destroy();
@@ -129,11 +131,13 @@ function createChunk(chunkPos: Vector3) {
 
         renderedChunks.vectorSet(chunkPos, true);
         renderingChunks.vectorDelete(chunkPos);
+        debug.profileend();
     });
 }
 
 function collectGarbage() {
     terrainScheduler.queueTask(() => {
+        debug.profilebegin('Collect Garbage');
         const charPos = characterPosition();
         const chunks = chunkFolder.GetChildren();
         let target = math.min(
@@ -163,6 +167,7 @@ function collectGarbage() {
                 break;
             }
         }
+        debug.profileend();
     });
 }
 
