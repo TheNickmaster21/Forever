@@ -57,7 +57,6 @@ function fetchChunk(vector: Vector3): void {
 
     fetchingChunks.vectorSet(vector, true);
     fetchingChunksCount++;
-    // print(`fetching ${vectorName(vector)}`);
     replicationEventFunction(vector);
 }
 
@@ -97,13 +96,10 @@ function getVoxel(voxelPosition: Vector3): boolean | undefined {
 
 function createChunk(chunkPosition: Vector3) {
     // Avoid double rendering a chunk
-    if (renderingChunks.vectorGet(chunkPosition) || renderedChunks.vectorGet(chunkPosition)) return;
+    if (renderedChunks.vectorGet(chunkPosition) || renderingChunks.vectorGet(chunkPosition)) return;
 
     const chunk = knownChunks.vectorGet(chunkPosition);
-    if (!chunk) {
-        // print('no chunk');
-        return;
-    }
+    if (!chunk) return;
     if (chunk.empty) {
         renderedChunks.vectorSet(chunkPosition, true);
         renderingChunks.vectorDelete(chunkPosition);
@@ -111,12 +107,7 @@ function createChunk(chunkPosition: Vector3) {
     }
     const neighborChunksExist = flat3DNeighborFunction(knownChunks, chunkPosition, (chunk) => chunk !== undefined);
     const missingNeighbor = neighborChunksExist.includes(false);
-    if (missingNeighbor) {
-        if (fetchingChunksCount === 0) {
-            //print('sus');
-        }
-        return;
-    }
+    if (missingNeighbor) return;
 
     renderingChunks.vectorSet(chunkPosition, true);
     terrainScheduler.queueTask(() => {
