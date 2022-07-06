@@ -27,26 +27,42 @@ export function rawChunkFromChunk(chunk: Chunk): RawChunk {
     };
 }
 
-export function chunkPosToWorldPos(pos: Vector3): Vector3 {
-    return pos.mul(GlobalSettings.chunkSize * GlobalSettings.voxelSize);
+export function chunkPositionToWorldPosition(position: Vector3): Vector3 {
+    return position.mul(GlobalSettings.chunkSize * GlobalSettings.voxelSize);
 }
 
-export function chunkPosAndVoxelOffsetToWorldPos(pos: Vector3, voxelOffset: Vector3): Vector3 {
-    return chunkPosToWorldPos(pos).add(voxelOffset.mul(GlobalSettings.voxelSize));
+export function chunkPositionToVoxelPosition(chunkPosition: Vector3): Vector3 {
+    return chunkPosition.mul(GlobalSettings.chunkSize);
 }
 
-export function worldPosToChunkPos(pos: Vector3): Vector3 {
+export function voxelPositionToChunkPosition(voxelPosition: Vector3): Vector3 {
     return new Vector3(
-        math.floor(pos.X / (GlobalSettings.chunkSize * GlobalSettings.voxelSize)),
-        math.floor(pos.Y / (GlobalSettings.chunkSize * GlobalSettings.voxelSize)),
-        math.floor(pos.Z / (GlobalSettings.chunkSize * GlobalSettings.voxelSize))
+        math.floor(voxelPosition.X / GlobalSettings.chunkSize),
+        math.floor(voxelPosition.Y / GlobalSettings.chunkSize),
+        math.floor(voxelPosition.Z / GlobalSettings.chunkSize)
     );
 }
 
-export function worldPosToChunkVoxelOffset(pos: Vector3): Vector3 {
+export function voxelPositionToVoxelOffset(voxelPosition: Vector3): Vector3 {
     return new Vector3(
-        pos.X % GlobalSettings.chunkSize,
-        pos.Y % GlobalSettings.chunkSize,
-        pos.Z % GlobalSettings.chunkSize
+        voxelPosition.X % GlobalSettings.chunkSize,
+        voxelPosition.Y % GlobalSettings.chunkSize,
+        voxelPosition.Z % GlobalSettings.chunkSize
+    );
+}
+
+export function voxelPositionToWorldPosition(voxelPosition: Vector3): Vector3 {
+    return voxelPosition.mul(Vector3.one.mul(GlobalSettings.voxelSize));
+}
+
+export function chunkPositionAndVoxelOffsetToWorldPosition(position: Vector3, voxelOffset: Vector3): Vector3 {
+    return chunkPositionToWorldPosition(position).add(voxelOffset.mul(GlobalSettings.voxelSize));
+}
+
+export function worldPositionToChunkPosition(position: Vector3): Vector3 {
+    return new Vector3(
+        math.floor(position.X / (GlobalSettings.chunkSize * GlobalSettings.voxelSize)),
+        math.floor(position.Y / (GlobalSettings.chunkSize * GlobalSettings.voxelSize)),
+        math.floor(position.Z / (GlobalSettings.chunkSize * GlobalSettings.voxelSize))
     );
 }
