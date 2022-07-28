@@ -1,38 +1,119 @@
 import { CrochetServer } from '@rbxts/crochet';
-import { Chunk, rawChunkFromChunk } from 'shared/chunk';
+import { Chunk, chunkPositionToVoxelPosition, chunkPositionToWorldPosition, rawChunkFromChunk } from 'shared/chunk';
 import { ReplicationEvent } from 'shared/events';
 import { GlobalSettings } from 'shared/global-settings';
 import { LazyScheduler } from 'shared/lazy-scheduler';
+import { manhattanSpread } from 'shared/manhattan-spread';
 import { Simple3DArray } from 'shared/simple-3d-array';
 
 const seed = os.time();
 
 const chunks = new Simple3DArray<Chunk>();
 
+interface Crater {
+    size: number;
+    position: Vector3;
+}
+
+// TODO
+interface Worm {
+    segments: {
+        startPosition: Vector3;
+        endPosition: Vector3;
+        width: number;
+    }[];
+}
+
+interface ChunkMetaInfo {
+    crater: Crater | undefined;
+    caveWorm: Worm | undefined;
+}
+
+const MetaInfoDistance = 2;
+const chunkMetaInfos = new Simple3DArray<ChunkMetaInfo>();
+
+function generateChunkMetaInfo(chunkPos: Vector3): ChunkMetaInfo {
+    const metaSeed = seed * math.noise(chunkPos.X / 10, chunkPos.Y / 10, chunkPos.Z / 10);
+    math.randomseed(metaSeed);
+
+    let crater: Crater | undefined;
+    if (math.random() < 0.5) {
+        crater = {
+            size: math.random(2, 10),
+            position: new Vector3(
+                math.random(0, GlobalSettings.chunkSize - 1),
+                math.random(0, GlobalSettings.chunkSize - 1),
+                math.random(0, GlobalSettings.chunkSize - 1)
+            )
+        };
+    }
+
+    let caveWorm: Worm | undefined;
+    if (math.random() < 0.05) {
+        caveWorm = { segments: [] };
+    }
+
+    const chunk = {
+        crater,
+        caveWorm
+    };
+    chunkMetaInfos.vectorSet(chunkPos, chunk);
+    return chunk;
+}
+
+function getChunkMetaInfo(chunkPos: Vector3): ChunkMetaInfo {
+    let chunkMeta = chunkMetaInfos.vectorGet(chunkPos);
+    if (chunkMeta === undefined) {
+        chunkMeta = generateChunkMetaInfo(chunkPos);
+    }
+    return chunkMeta;
+}
+
 const chunkFolder = new Instance('Folder');
 chunkFolder.Name = 'Chunks';
 chunkFolder.Parent = game.Workspace;
 
-function createRawVoxel(x: number, y: number, z: number): boolean {
-    let height = 15 * math.noise(x / 100, z / 100, seed);
-    height += 7 * math.noise(x / 15, z / 15, seed + 10);
+function createRawVoxel(
+    chunkPos: Vector3,
+    voxelOffset: Vector3,
+    relevantMetaInfo: Simple3DArray<ChunkMetaInfo>
+): boolean {
+    const absoluteVoxelPos = chunkPositionToVoxelPosition(chunkPos).add(voxelOffset);
+    let inCrater = false;
+    manhattanSpread(MetaInfoDistance, (offset) => {
+        const meta = relevantMetaInfo.vectorGet(offset);
+        if (!meta) return;
+        if (meta.crater) {
+            const craterPos = chunkPositionToVoxelPosition(chunkPos)
+                .add(offset.mul(GlobalSettings.chunkSize))
+                .add(meta.crater.position);
+            if (meta.crater.size >= craterPos.sub(absoluteVoxelPos).Magnitude) {
+                inCrater = true;
+                return 'break';
+            }
+        }
+    });
+    if (inCrater) return false;
+    let height = 15 * math.noise(absoluteVoxelPos.X / 100, absoluteVoxelPos.Z / 100, seed);
+    height += 7 * math.noise(absoluteVoxelPos.X / 15, absoluteVoxelPos.Z / 15, seed + 10);
 
-    return y < height;
+    return absoluteVoxelPos.Y < height;
 }
 
 function createChunk(chunkPos: Vector3): Chunk {
+    debug.profilebegin('Create Chunk');
     const voxels = new Simple3DArray<boolean>();
+    const relevantMetaInfo = new Simple3DArray<ChunkMetaInfo>();
+    manhattanSpread(MetaInfoDistance, (offset) => {
+        relevantMetaInfo.vectorSet(offset, getChunkMetaInfo(chunkPos.add(offset)));
+    });
 
     let empty = true;
     let full = true;
     for (let voxelX = 0; voxelX < GlobalSettings.chunkSize; voxelX++) {
         for (let voxelY = 0; voxelY < GlobalSettings.chunkSize; voxelY++) {
             for (let voxelZ = 0; voxelZ < GlobalSettings.chunkSize; voxelZ++) {
-                const voxel = createRawVoxel(
-                    chunkPos.X * GlobalSettings.chunkSize + voxelX,
-                    chunkPos.Y * GlobalSettings.chunkSize + voxelY,
-                    chunkPos.Z * GlobalSettings.chunkSize + voxelZ
-                );
+                const voxel = createRawVoxel(chunkPos, new Vector3(voxelX, voxelY, voxelZ), relevantMetaInfo);
 
                 voxels.set(voxelX, voxelY, voxelZ, voxel);
                 empty = empty && !voxel;
@@ -44,6 +125,7 @@ function createChunk(chunkPos: Vector3): Chunk {
     const chunk = { empty, full, voxels: !empty && !full ? voxels : undefined };
     // TODO prevent chunks from being rendered more than once with generatingChunks lookup
     chunks.vectorSet(chunkPos, chunk);
+    debug.profileend();
     return chunk;
 }
 

@@ -12,9 +12,11 @@ for (let x = math.floor(-MaxSpiralSize / 2); x <= math.ceil(MaxSpiralSize / 2); 
 
 table.sort(spiralVectorOffsets, (a, b) => a.Magnitude < b.Magnitude);
 
-export function manhattanSpread(radius: number, visit: (vector: Vector3) => void) {
+export function manhattanSpread(radius: number, visit: (vector: Vector3) => void | 'break') {
     if (radius > MaxSpiralSize) throw 'Spiral is too big; set larger MaxSpiralSize!';
     for (let i = 0; i < radius * radius * radius; i++) {
-        visit(spiralVectorOffsets[i]);
+        if (visit(spiralVectorOffsets[i]) === 'break') {
+            break;
+        }
     }
 }

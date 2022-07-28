@@ -4,6 +4,7 @@ type Task = () => void;
 
 export class LazyScheduler {
     private running = false;
+    private inTasks = false;
     private queue: Task[] = [];
 
     public queueTask(task: Task): void {
@@ -13,8 +14,14 @@ export class LazyScheduler {
 
         this.running = true;
         const connection = game.GetService('RunService').Stepped.Connect((t, deltaT) => {
+            if (this.inTasks) {
+                return;
+            }
+            this.inTasks = true;
+
             if (this.queue.isEmpty()) {
                 connection.Disconnect();
+                this.inTasks = false;
                 this.running = false;
                 return;
             }
@@ -25,6 +32,7 @@ export class LazyScheduler {
                 if (task === undefined) break;
                 task();
             }
+            this.inTasks = false;
         });
     }
 }

@@ -74,7 +74,7 @@ function vectorName(vector: Vector3): string {
 
 function createVoxel(worldPosition: Vector3, parent: Model) {
     const voxel = recycledVoxels.pop() ?? new Instance('Part');
-    // voxel.Transparency = 0.8;
+    // voxel.Transparency = 0.5;
     voxel.Name = vectorName(worldPosition);
     voxel.Size = new Vector3(GlobalSettings.voxelSize, GlobalSettings.voxelSize, GlobalSettings.voxelSize);
     voxel.TopSurface = Enum.SurfaceType.Smooth;
@@ -111,7 +111,7 @@ function createChunk(chunkPosition: Vector3) {
 
     renderingChunks.vectorSet(chunkPosition, true);
     terrainScheduler.queueTask(() => {
-        debug.profilebegin('Create Chunk');
+        debug.profilebegin('Render Chunk');
         const model = new Instance('Model');
         model.Name = vectorName(chunkPosition);
 
