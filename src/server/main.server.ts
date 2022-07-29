@@ -1,5 +1,6 @@
 import { CrochetServer } from '@rbxts/crochet';
-import { Chunk, chunkPositionToVoxelPosition, chunkPositionToWorldPosition, rawChunkFromChunk } from 'shared/chunk';
+import { Air, BlockType, DarkStone, Dirt, Grass, LightStone } from 'shared/block';
+import { Chunk, chunkPositionToVoxelPosition, rawChunkFromChunk } from 'shared/chunk';
 import { ReplicationEvent } from 'shared/events';
 import { GlobalSettings } from 'shared/global-settings';
 import { LazyScheduler } from 'shared/lazy-scheduler';
@@ -29,7 +30,7 @@ interface ChunkMetaInfo {
     caveWorm: Worm | undefined;
 }
 
-const MetaInfoDistance = 2;
+const MetaInfoDistance = 3;
 const chunkMetaInfos = new Simple3DArray<ChunkMetaInfo>();
 
 function generateChunkMetaInfo(chunkPos: Vector3): ChunkMetaInfo {
@@ -77,7 +78,7 @@ function createRawVoxel(
     chunkPos: Vector3,
     voxelOffset: Vector3,
     relevantMetaInfo: Simple3DArray<ChunkMetaInfo>
-): boolean {
+): BlockType {
     const absoluteVoxelPos = chunkPositionToVoxelPosition(chunkPos).add(voxelOffset);
     let inCrater = false;
     manhattanSpread(MetaInfoDistance, (offset) => {
@@ -93,37 +94,44 @@ function createRawVoxel(
             }
         }
     });
-    if (inCrater) return false;
+    if (inCrater) return 0;
     let height = 15 * math.noise(absoluteVoxelPos.X / 100, absoluteVoxelPos.Z / 100, seed);
     height += 7 * math.noise(absoluteVoxelPos.X / 15, absoluteVoxelPos.Z / 15, seed + 10);
 
-    return absoluteVoxelPos.Y < height;
+    if (absoluteVoxelPos.Y >= height) {
+        return Air;
+    } else if (height - absoluteVoxelPos.Y < 2) {
+        return Grass;
+    } else if (height - absoluteVoxelPos.Y < 5) {
+        return Dirt;
+    } else if (height - absoluteVoxelPos.Y < 25) {
+        return LightStone;
+    } else {
+        return DarkStone;
+    }
 }
 
 function createChunk(chunkPos: Vector3): Chunk {
     debug.profilebegin('Create Chunk');
-    const voxels = new Simple3DArray<boolean>();
+    const voxels = new Simple3DArray<BlockType>();
     const relevantMetaInfo = new Simple3DArray<ChunkMetaInfo>();
     manhattanSpread(MetaInfoDistance, (offset) => {
         relevantMetaInfo.vectorSet(offset, getChunkMetaInfo(chunkPos.add(offset)));
     });
 
     let empty = true;
-    let full = true;
     for (let voxelX = 0; voxelX < GlobalSettings.chunkSize; voxelX++) {
         for (let voxelY = 0; voxelY < GlobalSettings.chunkSize; voxelY++) {
             for (let voxelZ = 0; voxelZ < GlobalSettings.chunkSize; voxelZ++) {
                 const voxel = createRawVoxel(chunkPos, new Vector3(voxelX, voxelY, voxelZ), relevantMetaInfo);
 
                 voxels.set(voxelX, voxelY, voxelZ, voxel);
-                empty = empty && !voxel;
-                full = full && voxel;
+                empty = empty && voxel === 0;
             }
         }
     }
 
-    const chunk = { empty, full, voxels: !empty && !full ? voxels : undefined };
-    // TODO prevent chunks from being rendered more than once with generatingChunks lookup
+    const chunk = { empty, voxels: !empty ? voxels : undefined };
     chunks.vectorSet(chunkPos, chunk);
     debug.profileend();
     return chunk;

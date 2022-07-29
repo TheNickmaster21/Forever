@@ -1,16 +1,15 @@
+import { BlockType } from './block';
 import { GlobalSettings } from './global-settings';
 import { Simple3DArray } from './simple-3d-array';
 
 export interface Chunk {
     empty: boolean;
-    full: boolean;
-    voxels?: Simple3DArray<boolean>;
+    voxels?: Simple3DArray<BlockType>;
 }
 
 export interface RawChunk {
     empty: boolean;
-    full: boolean;
-    voxels?: boolean[][][];
+    voxels?: BlockType[][][];
 }
 
 export function chunkFromRawChunk(rawChunk: RawChunk): Chunk {

@@ -1,4 +1,5 @@
 import { CrochetClient } from '@rbxts/crochet';
+import { BlockConfig, BlockType, BlockTypeAttribute } from 'shared/block';
 import {
     Chunk,
     chunkFromRawChunk,
@@ -34,7 +35,6 @@ const recycledVoxels: Part[] = [];
 
 const knownChunks = new Simple3DArray<Chunk>();
 const fetchingChunks = new Simple3DArray<boolean>();
-let fetchingChunksCount = 0;
 
 const renderingChunks = new Simple3DArray<boolean>();
 const renderedChunks = new Simple3DArray<boolean>();
@@ -56,7 +56,6 @@ function fetchChunk(vector: Vector3): void {
     if (fetchingChunks.vectorGet(vector)) return;
 
     fetchingChunks.vectorSet(vector, true);
-    fetchingChunksCount++;
     replicationEventFunction(vector);
 }
 
@@ -64,7 +63,6 @@ CrochetClient.bindRemoteEvent(ReplicationEvent, (vector, value) => {
     if (value === undefined) {
         return;
     }
-    fetchingChunksCount--;
     knownChunks.vectorSet(vector, chunkFromRawChunk(value));
 });
 
@@ -72,24 +70,24 @@ function vectorName(vector: Vector3): string {
     return `${vector.X},${vector.Y},${vector.Z}`;
 }
 
-function createVoxel(worldPosition: Vector3, parent: Model) {
+function createVoxel(worldPosition: Vector3, blockType: BlockType, parent: Model) {
     const voxel = recycledVoxels.pop() ?? new Instance('Part');
-    // voxel.Transparency = 0.5;
+    // voxel.Transparency = 0.8;
     voxel.Name = vectorName(worldPosition);
     voxel.Size = new Vector3(GlobalSettings.voxelSize, GlobalSettings.voxelSize, GlobalSettings.voxelSize);
     voxel.TopSurface = Enum.SurfaceType.Smooth;
     voxel.BottomSurface = Enum.SurfaceType.Smooth;
-    voxel.BrickColor = BrickColor.random();
+    voxel.Color = BlockConfig[blockType].color;
     voxel.Anchored = true;
     voxel.Position = worldPosition;
+    CrochetClient.setAttribute(voxel, BlockTypeAttribute, blockType);
     voxel.Parent = parent;
 }
 
-function getVoxel(voxelPosition: Vector3): boolean | undefined {
+function getVoxel(voxelPosition: Vector3): BlockType | undefined {
     const chunk = knownChunks.vectorGet(voxelPositionToChunkPosition(voxelPosition));
     if (!chunk) return undefined;
-    if (chunk.empty) return false;
-    if (chunk.full) return true;
+    if (chunk.empty) return 0;
     if (!chunk.voxels) return undefined;
     return chunk.voxels.vectorGet(voxelPositionToVoxelOffset(voxelPosition));
 }
@@ -119,12 +117,12 @@ function createChunk(chunkPosition: Vector3) {
             chunkPositionToVoxelPosition(chunkPosition),
             chunkPositionToVoxelPosition(chunkPosition).add(Vector3.one.mul(GlobalSettings.chunkSize)),
             (voxelPosition) => {
-                const voxel = chunk.full || chunk.voxels?.vectorGet(voxelPositionToVoxelOffset(voxelPosition));
-                if (!voxel) return;
-                const neighborsFull = eightNeighborOffsets.map((offset) => !!getVoxel(voxelPosition.add(offset)));
+                const voxel = chunk.voxels?.vectorGet(voxelPositionToVoxelOffset(voxelPosition));
+                if (voxel === undefined || voxel === 0) return;
+                const neighborsFull = eightNeighborOffsets.map((offset) => getVoxel(voxelPosition.add(offset)) !== 0);
                 const emptyNeighbor = neighborsFull.includes(false);
                 if (emptyNeighbor) {
-                    createVoxel(voxelPositionToWorldPosition(voxelPosition), model);
+                    createVoxel(voxelPositionToWorldPosition(voxelPosition), voxel, model);
                 }
             }
         );
