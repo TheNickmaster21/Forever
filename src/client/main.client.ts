@@ -78,6 +78,7 @@ function createVoxel(worldPosition: Vector3, blockType: BlockType, parent: Model
     voxel.TopSurface = Enum.SurfaceType.Smooth;
     voxel.BottomSurface = Enum.SurfaceType.Smooth;
     voxel.Color = BlockConfig[blockType].color;
+    voxel.Material = BlockConfig[blockType].material;
     voxel.Anchored = true;
     voxel.Position = worldPosition;
     CrochetClient.setAttribute(voxel, BlockTypeAttribute, blockType);

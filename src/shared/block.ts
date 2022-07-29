@@ -19,27 +19,33 @@ export const BlockTypeAttribute = new AttributeDefinition<BlockType>('BlockType'
 export interface BlockConfig {
     name: string;
     color: Color3;
+    material: Enum.Material;
 }
 
 export const BlockConfig: Record<BlockType, BlockConfig> = {
     [Air]: {
         name: 'Air',
-        color: new Color3(1, 1, 1)
+        color: new Color3(1, 1, 1),
+        material: Enum.Material.Air
     },
     [Grass]: {
         name: 'Grass',
-        color: Color3.fromRGB(13, 77, 13)
+        color: Color3.fromRGB(13, 77, 13),
+        material: Enum.Material.Grass
     },
     [Dirt]: {
         name: 'Dirt',
-        color: Color3.fromRGB(84, 56, 36)
+        color: Color3.fromRGB(84, 56, 36),
+        material: Enum.Material.Slate
     },
     [LightStone]: {
         name: 'Light Stone',
-        color: Color3.fromRGB(125, 125, 125)
+        color: Color3.fromRGB(125, 125, 125),
+        material: Enum.Material.Slate
     },
     [DarkStone]: {
         name: 'Dark Stone',
-        color: Color3.fromRGB(48, 48, 48)
+        color: Color3.fromRGB(48, 48, 48),
+        material: Enum.Material.Basalt
     }
 };
