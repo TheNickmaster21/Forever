@@ -14,6 +14,7 @@ const chunks = new Simple3DArray<Chunk>();
 interface Crater {
     size: number;
     position: Vector3;
+    stretch: Vector3;
 }
 
 // TODO
@@ -45,7 +46,8 @@ function generateChunkMetaInfo(chunkPos: Vector3): ChunkMetaInfo {
                 math.random(0, GlobalSettings.chunkSize - 1),
                 math.random(0, GlobalSettings.chunkSize - 1),
                 math.random(0, GlobalSettings.chunkSize - 1)
-            )
+            ),
+            stretch: new Vector3(math.random() + 0.5, math.random() + 0.5, math.random() + 0.5)
         };
     }
 
@@ -88,7 +90,7 @@ function createRawVoxel(
             const craterPos = chunkPositionToVoxelPosition(chunkPos)
                 .add(offset.mul(GlobalSettings.chunkSize))
                 .add(meta.crater.position);
-            if (meta.crater.size >= craterPos.sub(absoluteVoxelPos).Magnitude) {
+            if (meta.crater.size >= craterPos.sub(absoluteVoxelPos).mul(meta.crater.stretch).Magnitude) {
                 inCrater = true;
                 return 'break';
             }
