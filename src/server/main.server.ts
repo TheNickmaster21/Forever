@@ -102,7 +102,7 @@ function createRawVoxel(
 
     if (absoluteVoxelPos.Y >= height) {
         return Air;
-    } else if (height - absoluteVoxelPos.Y < 2) {
+    } else if (height - absoluteVoxelPos.Y < 1) {
         return Grass;
     } else if (height - absoluteVoxelPos.Y < 5) {
         return Dirt;

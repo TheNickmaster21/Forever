@@ -14,6 +14,7 @@ export = {
     },
 
     Functions: {
+        // This doesn't work for negative values
         A: (Profiler: Profiler, RandomNumber: number) => {
             const grid = [];
 
@@ -21,7 +22,7 @@ export = {
                 for (let y = -gridResolution; y < gridResolution; y++) {
                     for (let z = -gridResolution; z < gridResolution; z++) {
                         const vector = new Vector3(x, y, z);
-                        grid[x + y * gridResolution + z * gridResolution * gridResolution] = vector;
+                        grid[x + y * gridResolution + z * gridResolution * gridResolution] = RandomNumber;
                     }
                 }
             }
@@ -36,7 +37,7 @@ export = {
         },
 
         B: (Profiler: Profiler, RandomNumber: number) => {
-            const grid: boolean[][][] = [];
+            const grid: number[][][] = [];
 
             for (let x = -gridResolution; x < gridResolution; x++) {
                 grid[x] = [];
@@ -44,7 +45,7 @@ export = {
                     grid[x][y] = [];
                     for (let z = -gridResolution; z < gridResolution; z++) {
                         const vector = new Vector3(x, y, z);
-                        grid[x][y][z] = true;
+                        grid[x][y][z] = RandomNumber;
                     }
                 }
             }
@@ -59,13 +60,13 @@ export = {
         },
 
         C: (Profiler: Profiler, RandomNumber: number) => {
-            const grid = new Map<Vector3, boolean>();
+            const grid = new Map<Vector3, number>();
 
             for (let x = -gridResolution; x < gridResolution; x++) {
                 for (let y = -gridResolution; y < gridResolution; y++) {
                     for (let z = -gridResolution; z < gridResolution; z++) {
                         const vector = new Vector3(x, y, z);
-                        grid.set(vector, true);
+                        grid.set(vector, RandomNumber);
                     }
                 }
             }
@@ -75,6 +76,46 @@ export = {
                     for (let z = -gridResolution; z < gridResolution; z++) {
                         const vector = new Vector3(x, y, z);
                         const a = grid.get(vector);
+                    }
+                }
+            }
+        },
+
+        D: (Profiler: Profiler, RandomNumber: number) => {
+            const grid = new Map<string, number>();
+
+            for (let x = -gridResolution; x < gridResolution; x++) {
+                for (let y = -gridResolution; y < gridResolution; y++) {
+                    for (let z = -gridResolution; z < gridResolution; z++) {
+                        grid.set(x + '|' + y + '|' + z, RandomNumber);
+                    }
+                }
+            }
+
+            for (let x = -gridResolution; x < gridResolution; x++) {
+                for (let y = -gridResolution; y < gridResolution; y++) {
+                    for (let z = -gridResolution; z < gridResolution; z++) {
+                        const a = grid.get(x + '|' + y + '|' + z);
+                    }
+                }
+            }
+        },
+
+        E: (Profiler: Profiler, RandomNumber: number) => {
+            const grid = new Map<number, number>();
+
+            for (let x = -gridResolution; x < gridResolution; x++) {
+                for (let y = -gridResolution; y < gridResolution; y++) {
+                    for (let z = -gridResolution; z < gridResolution; z++) {
+                        grid.set(bit32.lshift(x, 16) | bit32.lshift(y, 8) | z, RandomNumber);
+                    }
+                }
+            }
+
+            for (let x = -gridResolution; x < gridResolution; x++) {
+                for (let y = -gridResolution; y < gridResolution; y++) {
+                    for (let z = -gridResolution; z < gridResolution; z++) {
+                        const a = grid.get(bit32.lshift(x, 16) | bit32.lshift(y, 8) | z);
                     }
                 }
             }
