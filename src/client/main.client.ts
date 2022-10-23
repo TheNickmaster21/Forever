@@ -56,7 +56,7 @@ function fetchChunk(vector: Vector3): void {
     if (fetchingChunks.vectorGet(vector)) return;
 
     fetchingChunks.vectorSet(vector, true);
-    replicationEventFunction(vector);
+    replicationEventFunction(vector, undefined);
 }
 
 CrochetClient.bindRemoteEvent(ReplicationEvent, (vector, value) => {

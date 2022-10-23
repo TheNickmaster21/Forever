@@ -143,7 +143,7 @@ const generationScheduler = new LazyScheduler();
 
 CrochetServer.registerRemoteEvent(ReplicationEvent);
 const replicate = CrochetServer.getRemoteEventFunction(ReplicationEvent);
-CrochetServer.bindRemoteEvent(ReplicationEvent, (player, chunkPos) => {
+CrochetServer.bindRemoteEvent(ReplicationEvent, (player, chunkPos, _value) => {
     const chunk = chunks.vectorGet(chunkPos);
     if (chunk !== undefined) {
         replicate(player, chunkPos, rawChunkFromChunk(chunk));

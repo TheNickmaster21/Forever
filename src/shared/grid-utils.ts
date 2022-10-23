@@ -9,7 +9,7 @@ export const eightNeighborOffsets = [
     new Vector3(0, 0, -1)
 ] as const;
 
-export function flat3DNeighborFunction<T, I>(
+export function flat3DNeighborFunction<T extends defined, I>(
     simple3dArray: Simple3DArray<I>,
     vector: Vector3,
     func: (neighbor: I | undefined) => T
