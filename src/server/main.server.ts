@@ -1,7 +1,11 @@
 import { CrochetServer } from '@rbxts/crochet';
 import { Air, BlockType, DarkStone, Dirt, Grass, LightStone } from 'shared/block';
 import { Chunk, chunkPositionToVoxelPosition, rawChunkFromChunk } from 'shared/chunk';
-import { ReplicationEvent } from 'shared/events';
+import {
+    BlockChangeReplicationEvent,
+    BlockChangeRequestReplicationEvent,
+    FullChunkReplicationEvent
+} from 'shared/events';
 import { GlobalSettings } from 'shared/global-settings';
 import { LazyScheduler } from 'shared/lazy-scheduler';
 import { manhattanSpread } from 'shared/manhattan-spread';
@@ -141,17 +145,34 @@ function createChunk(chunkPos: Vector3): Chunk {
 
 const generationScheduler = new LazyScheduler();
 
-CrochetServer.registerRemoteEvent(ReplicationEvent);
-const replicate = CrochetServer.getRemoteEventFunction(ReplicationEvent);
-CrochetServer.bindRemoteEvent(ReplicationEvent, (player, chunkPos, _value) => {
+CrochetServer.registerRemoteEvent(FullChunkReplicationEvent);
+const replicateChunk = CrochetServer.getRemoteEventFunction(FullChunkReplicationEvent);
+CrochetServer.bindRemoteEvent(FullChunkReplicationEvent, (player, chunkPos, _value) => {
     const chunk = chunks.vectorGet(chunkPos);
     if (chunk !== undefined) {
-        replicate(player, chunkPos, rawChunkFromChunk(chunk));
+        replicateChunk(player, chunkPos, rawChunkFromChunk(chunk));
     }
 
     generationScheduler.queueTask(() => {
-        replicate(player, chunkPos, rawChunkFromChunk(createChunk(chunkPos)));
+        replicateChunk(player, chunkPos, rawChunkFromChunk(createChunk(chunkPos)));
     });
+});
+
+CrochetServer.registerRemoteEvent(BlockChangeReplicationEvent);
+const replicateBlockChange = CrochetServer.getRemoteEventAllFunction(BlockChangeReplicationEvent);
+
+CrochetServer.registerRemoteEvent(BlockChangeRequestReplicationEvent);
+CrochetServer.bindRemoteEvent(BlockChangeRequestReplicationEvent, (player, chunkPos, voxelPos, blockType) => {
+    print(player, chunkPos, voxelPos, blockType);
+
+    const chunk = chunks.vectorGet(chunkPos);
+    const voxel = chunk?.voxels?.vectorGet(voxelPos);
+
+    // TODO Support working with empty chunks
+    if (voxel !== undefined && voxel !== blockType) {
+        chunk?.voxels?.vectorSet(voxelPos, blockType);
+        replicateBlockChange(chunkPos, voxelPos, blockType);
+    }
 });
 
 CrochetServer.start();

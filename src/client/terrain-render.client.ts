@@ -1,5 +1,5 @@
 import { CrochetClient } from '@rbxts/crochet';
-import { BlockConfig, BlockType, BlockTypeAttribute } from 'shared/block';
+import { Air, BlockConfig, BlockType, BlockTypeAttribute } from 'shared/block';
 import {
     Chunk,
     chunkFromRawChunk,
@@ -10,14 +10,15 @@ import {
     voxelPositionToWorldPosition,
     worldPositionToChunkPosition
 } from 'shared/chunk';
-import { ReplicationEvent } from 'shared/events';
+import { BlockChangeReplicationEvent, FullChunkReplicationEvent } from 'shared/events';
 import { GlobalSettings } from 'shared/global-settings';
 import { flat3DNeighborFunction, iterateInVectorRange, eightNeighborOffsets } from 'shared/grid-utils';
 import { LazyScheduler } from 'shared/lazy-scheduler';
 import { manhattanSpread } from 'shared/manhattan-spread';
 import { Simple3DArray } from 'shared/simple-3d-array';
+import { startCrochetPromise } from './crochet-start';
 
-CrochetClient.start().await();
+startCrochetPromise.await();
 
 const player = game.GetService('Players').LocalPlayer;
 let character = player.Character;
@@ -50,7 +51,7 @@ function characterAtChunk(): Vector3 {
     return worldPositionToChunkPosition(characterPosition());
 }
 
-const replicationEventFunction = CrochetClient.getRemoteEventFunction(ReplicationEvent);
+const replicationEventFunction = CrochetClient.getRemoteEventFunction(FullChunkReplicationEvent);
 
 function fetchChunk(vector: Vector3): void {
     if (fetchingChunks.vectorGet(vector)) return;
@@ -59,11 +60,29 @@ function fetchChunk(vector: Vector3): void {
     replicationEventFunction(vector, undefined);
 }
 
-CrochetClient.bindRemoteEvent(ReplicationEvent, (vector, value) => {
+CrochetClient.bindRemoteEvent(FullChunkReplicationEvent, (vector, value) => {
     if (value === undefined) {
         return;
     }
     knownChunks.vectorSet(vector, chunkFromRawChunk(value));
+});
+
+CrochetClient.bindRemoteEvent(BlockChangeReplicationEvent, (chunkPos, voxelPos, blockType) => {
+    print(chunkPos, voxelPos, blockType);
+    const chunk = knownChunks.vectorGet(chunkPos);
+    if (chunk === undefined) {
+        return;
+    }
+
+    // TODO Handle changes to empty chunks
+    chunk.voxels?.vectorSet(voxelPos, blockType);
+
+    // Ugly hack to rerender a chunk fully
+    const physicalChunk = chunkFolder.FindFirstChild(vectorName(chunkPos));
+    physicalChunk?.Destroy();
+    renderedChunks.vectorDelete(chunkPos);
+
+    print('bye chunk');
 });
 
 function vectorName(vector: Vector3): string {
@@ -109,6 +128,7 @@ function createChunk(chunkPosition: Vector3) {
     if (missingNeighbor) return;
 
     renderingChunks.vectorSet(chunkPosition, true);
+    // TODO Convert to evaluate function that diffs a chunk model with what it should look like and adds/removes parts as necesary
     terrainScheduler.queueTask(() => {
         debug.profilebegin('Render Chunk');
         const model = new Instance('Model');

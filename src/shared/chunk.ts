@@ -91,3 +91,11 @@ export function worldPositionToChunkPosition(position: Vector3): Vector3 {
         math.floor(position.Z / (GlobalSettings.chunkSize * GlobalSettings.voxelSize))
     );
 }
+
+export function worldPositionToChunkOffsett(position: Vector3): Vector3 {
+    return new Vector3(
+        math.floor(position.X / GlobalSettings.voxelSize) % GlobalSettings.chunkSize,
+        math.floor(position.Y / GlobalSettings.voxelSize) % GlobalSettings.chunkSize,
+        math.floor(position.Z / GlobalSettings.voxelSize) % GlobalSettings.chunkSize
+    );
+}
