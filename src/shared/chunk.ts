@@ -1,5 +1,6 @@
-import { BlockType } from './block';
+import { Air, BlockType } from './block';
 import { GlobalSettings } from './global-settings';
+import { iterateInVectorRange } from './grid-utils';
 import { Simple3DArray } from './simple-3d-array';
 
 export interface Chunk {
@@ -12,16 +13,22 @@ export interface RawChunk {
     voxels?: string;
 }
 
+const ASCIISkipSpecialCharactersOffset = 33;
+
 export function chunkFromRawChunk(rawChunk: RawChunk): Chunk {
     let voxels: BlockType[][][] | undefined;
     if (rawChunk.voxels !== undefined) {
         voxels = [];
         let index = 0;
         for (const char of rawChunk.voxels) {
-            const [x, y, z] = [math.floor(index / (16 * 16)) % 16, math.floor(index / 16) % 16, index % 16];
+            const [x, y, z] = [
+                math.floor(index / (GlobalSettings.chunkSize * GlobalSettings.chunkSize)) % GlobalSettings.chunkSize,
+                math.floor(index / GlobalSettings.chunkSize) % GlobalSettings.chunkSize,
+                index % GlobalSettings.chunkSize
+            ];
             if (y === 0 && z === 0) voxels[x] = [];
             if (z === 0) voxels[x][y] = [];
-            voxels[x][y][z] = (string.byte(char)[0] - 35) as BlockType;
+            voxels[x][y][z] = (string.byte(char)[0] - ASCIISkipSpecialCharactersOffset) as BlockType;
             index++;
         }
     }
@@ -39,7 +46,7 @@ export function rawChunkFromChunk(chunk: Chunk): RawChunk {
         for (const arrX of chunk.voxels.raw()) {
             for (const arrY of arrX) {
                 for (const v of arrY) {
-                    flatVoxelArray.push(v + 35);
+                    flatVoxelArray.push(v + ASCIISkipSpecialCharactersOffset);
                 }
             }
         }
@@ -50,6 +57,20 @@ export function rawChunkFromChunk(chunk: Chunk): RawChunk {
         ...chunk,
         voxels
     };
+}
+
+export function initialVoxelsFromEmpty(): Simple3DArray<BlockType> {
+    const voxels: BlockType[][][] = [];
+    iterateInVectorRange(
+        new Vector3(0, 0, 0),
+        new Vector3(GlobalSettings.chunkSize, GlobalSettings.chunkSize, GlobalSettings.chunkSize),
+        (vector: Vector3) => {
+            if (vector.Y === 0 && vector.Z === 0) voxels[vector.X] = [];
+            if (vector.Z === 0) voxels[vector.X][vector.Y] = [];
+            voxels[vector.X][vector.Y][vector.Z] = Air;
+        }
+    );
+    return new Simple3DArray(voxels);
 }
 
 export function chunkPositionToWorldPosition(position: Vector3): Vector3 {
