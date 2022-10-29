@@ -1,6 +1,6 @@
 import { CrochetServer } from '@rbxts/crochet';
 import { Air, BlockType, DarkStone, Dirt, Grass, LightStone } from 'shared/block';
-import { Chunk, chunkPositionToVoxelPosition, rawChunkFromChunk } from 'shared/chunk';
+import { Chunk, chunkPositionToVoxelPosition, initialVoxelsFromEmpty, rawChunkFromChunk } from 'shared/chunk';
 import {
     BlockChangeReplicationEvent,
     BlockChangeRequestReplicationEvent,
@@ -168,8 +168,10 @@ CrochetServer.bindRemoteEvent(BlockChangeRequestReplicationEvent, (player, chunk
     const chunk = chunks.vectorGet(chunkPos);
     const voxel = chunk?.voxels?.vectorGet(voxelPos);
 
-    // TODO Support working with empty chunks
     if (voxel !== undefined && voxel !== blockType) {
+        if (chunk?.empty) {
+            chunk.voxels = initialVoxelsFromEmpty();
+        }
         chunk?.voxels?.vectorSet(voxelPos, blockType);
         replicateBlockChange(chunkPos, voxelPos, blockType);
     }

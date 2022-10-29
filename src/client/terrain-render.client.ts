@@ -5,6 +5,7 @@ import {
     chunkFromRawChunk,
     chunkPositionToVoxelPosition,
     chunkPositionToWorldPosition,
+    initialVoxelsFromEmpty,
     voxelPositionToChunkPosition,
     voxelPositionToVoxelOffset,
     voxelPositionToWorldPosition,
@@ -74,7 +75,9 @@ CrochetClient.bindRemoteEvent(BlockChangeReplicationEvent, (chunkPos, voxelPos, 
         return;
     }
 
-    // TODO Handle changes to empty chunks
+    if (chunk.empty) {
+        chunk.voxels = initialVoxelsFromEmpty();
+    }
     chunk.voxels?.vectorSet(voxelPos, blockType);
 
     // Ugly hack to rerender a chunk fully
