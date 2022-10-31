@@ -73,7 +73,6 @@ CrochetClient.bindRemoteEvent(FullChunkReplicationEvent, (vector, value) => {
 });
 
 CrochetClient.bindRemoteEvent(BlockChangeReplicationEvent, (chunkPos, voxelPos, blockType) => {
-    print(chunkPos, voxelPos, blockType);
     const chunk = knownChunks.vectorGet(chunkPos);
     if (chunk === undefined) {
         return;
@@ -88,45 +87,52 @@ CrochetClient.bindRemoteEvent(BlockChangeReplicationEvent, (chunkPos, voxelPos, 
     recaculateVoxelsAroundChangedVoxel(chunkPos.mul(GlobalSettings.chunkSize).add(voxelPos) as GlobalVoxelPosition);
 });
 
-function recaculateVoxelsAroundChangedVoxel(updatedVoxelworkspacePosition: GlobalVoxelPosition): void {
-    print('recalc', updatedVoxelworkspacePosition);
+function recaculateVoxelsAroundChangedVoxel(updatedVoxelWorkspacePosition: GlobalVoxelPosition): void {
     debug.profilebegin('Recalculate Voxels');
-    manhattanSpread(2, (offset) => {
-        const voxelPosition = updatedVoxelworkspacePosition.add(offset) as GlobalVoxelPosition;
-        print('spread', voxelPosition);
-        const chunkPosition = voxelPositionToChunkPosition(voxelPosition);
-        const chunk = knownChunks.vectorGet(chunkPosition);
-        const model = chunkFolder.FindFirstChild(vectorName(chunkPosition));
-        if (chunk === undefined || model === undefined) return;
-        const workspacePosition = voxelPositionToWorkspacePosition(voxelPosition);
-        const existingPart = model.FindFirstChild(vectorName(workspacePosition));
+    const model = chunkFolder.FindFirstChild(
+        chunkModelName(voxelPositionToChunkPosition(updatedVoxelWorkspacePosition))
+    );
+    if (model) {
+        const existingPart = model.FindFirstChild(
+            voxelName(voxelPositionToWorkspacePosition(updatedVoxelWorkspacePosition))
+        );
         if (existingPart) {
             existingPart.Destroy();
-            print('gone');
         }
+    }
+    manhattanSpread(2, (offset) => {
+        const voxelPosition = updatedVoxelWorkspacePosition.add(offset) as GlobalVoxelPosition;
+        const chunkPosition = voxelPositionToChunkPosition(voxelPosition);
+        const chunk = knownChunks.vectorGet(chunkPosition);
+        const model = chunkFolder.FindFirstChild(chunkModelName(chunkPosition));
+        if (chunk === undefined || model === undefined) return;
+        const workspacePosition = voxelPositionToWorkspacePosition(voxelPosition);
         const voxel = chunk.voxels?.vectorGet(voxelPositionToVoxelOffset(voxelPosition));
         if (voxel === undefined || voxel === 0) return;
         const neighborsFull = eightNeighborOffsets.map(
             (offset) => getVoxel(voxelPosition.add(offset) as GlobalVoxelPosition) !== 0
         );
-        print(neighborsFull);
         const emptyNeighbor = neighborsFull.includes(false);
-        if (emptyNeighbor) {
-            print('back');
+        const existingPart = model.FindFirstChild(voxelName(voxelPositionToWorkspacePosition(voxelPosition)));
+        if (emptyNeighbor && existingPart === undefined) {
             createVoxel(workspacePosition, voxel, model as Model);
         }
     });
     debug.profileend();
 }
 
-function vectorName(vector: Vector3): string {
+function chunkModelName(vector: ChunkPosition): string {
+    return `${vector.X},${vector.Y},${vector.Z}`;
+}
+
+function voxelName(vector: WorkspacePosition): string {
     return `${vector.X},${vector.Y},${vector.Z}`;
 }
 
 function createVoxel(workspacePosition: WorkspacePosition, blockType: BlockType, parent: Model) {
     const voxel = recycledVoxels.pop() ?? new Instance('Part');
     // voxel.Transparency = 0.8;
-    voxel.Name = vectorName(workspacePosition);
+    voxel.Name = voxelName(workspacePosition);
     voxel.Size = new Vector3(GlobalSettings.voxelSize, GlobalSettings.voxelSize, GlobalSettings.voxelSize);
     voxel.TopSurface = Enum.SurfaceType.Smooth;
     voxel.BottomSurface = Enum.SurfaceType.Smooth;
@@ -165,7 +171,7 @@ function createChunk(chunkPosition: ChunkPosition) {
     terrainScheduler.queueTask(() => {
         debug.profilebegin('Render Chunk');
         const model = new Instance('Model');
-        model.Name = vectorName(chunkPosition);
+        model.Name = chunkModelName(chunkPosition);
 
         iterateInVectorRange(
             chunkPositionToVoxelPosition(chunkPosition),

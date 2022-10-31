@@ -174,8 +174,6 @@ const replicateBlockChange = CrochetServer.getRemoteEventAllFunction(BlockChange
 
 CrochetServer.registerRemoteEvent(BlockChangeRequestReplicationEvent);
 CrochetServer.bindRemoteEvent(BlockChangeRequestReplicationEvent, (player, chunkPos, voxelPos, blockType) => {
-    print(player, chunkPos, voxelPos, blockType);
-
     const chunk = chunks.vectorGet(chunkPos);
     const voxel = chunk?.voxels?.vectorGet(voxelPos);
 
