@@ -1,5 +1,5 @@
 import { CrochetClient } from '@rbxts/crochet';
-import { worldPositionToChunkOffsett, worldPositionToChunkPosition } from 'shared/chunk';
+import { WorkspacePosition, workspacePositionToChunkOffset, workspacePositionToChunkPosition } from 'shared/chunk';
 import { BlockChangeRequestReplicationEvent } from 'shared/events';
 import { startCrochetPromise } from './crochet-start';
 
@@ -17,13 +17,14 @@ function clickAt(screenPos: Vector3) {
 
     const hit = rayResult?.Instance;
     if (hit) {
-        print('poggies');
+        print('hit');
         if (hit.Parent?.Parent?.Name === 'Chunks') {
-            print(worldPositionToChunkPosition(hit.Position), worldPositionToChunkOffsett(hit.Position));
+            const position = hit.Position as WorkspacePosition;
+            print(workspacePositionToChunkPosition(position), workspacePositionToChunkOffset(position));
 
             replicationEventFunction(
-                worldPositionToChunkPosition(hit.Position),
-                worldPositionToChunkOffsett(hit.Position),
+                workspacePositionToChunkPosition(position),
+                workspacePositionToChunkOffset(position),
                 0
             );
         }

@@ -1,6 +1,13 @@
 import { CrochetServer } from '@rbxts/crochet';
 import { Air, BlockType, DarkStone, Dirt, Grass, LightStone } from 'shared/block';
-import { Chunk, chunkPositionToVoxelPosition, initialVoxelsFromEmpty, rawChunkFromChunk } from 'shared/chunk';
+import {
+    Chunk,
+    ChunkPosition,
+    chunkPositionToVoxelPosition,
+    initialVoxelsFromEmpty,
+    LocalChunkOffset,
+    rawChunkFromChunk
+} from 'shared/chunk';
 import {
     BlockChangeReplicationEvent,
     BlockChangeRequestReplicationEvent,
@@ -13,7 +20,7 @@ import { Simple3DArray } from 'shared/simple-3d-array';
 
 const seed = os.time();
 
-const chunks = new Simple3DArray<Chunk>();
+const chunks = new Simple3DArray<Chunk, ChunkPosition>();
 
 interface Crater {
     size: number;
@@ -81,8 +88,8 @@ chunkFolder.Name = 'Chunks';
 chunkFolder.Parent = game.Workspace;
 
 function createRawVoxel(
-    chunkPos: Vector3,
-    voxelOffset: Vector3,
+    chunkPos: ChunkPosition,
+    voxelOffset: LocalChunkOffset,
     relevantMetaInfo: Simple3DArray<ChunkMetaInfo>
 ): BlockType {
     const absoluteVoxelPos = chunkPositionToVoxelPosition(chunkPos).add(voxelOffset);
@@ -117,7 +124,7 @@ function createRawVoxel(
     }
 }
 
-function createChunk(chunkPos: Vector3): Chunk {
+function createChunk(chunkPos: ChunkPosition): Chunk {
     debug.profilebegin('Create Chunk');
     const voxels = new Simple3DArray<BlockType>();
     const relevantMetaInfo = new Simple3DArray<ChunkMetaInfo>();
@@ -129,7 +136,11 @@ function createChunk(chunkPos: Vector3): Chunk {
     for (let voxelX = 0; voxelX < GlobalSettings.chunkSize; voxelX++) {
         for (let voxelY = 0; voxelY < GlobalSettings.chunkSize; voxelY++) {
             for (let voxelZ = 0; voxelZ < GlobalSettings.chunkSize; voxelZ++) {
-                const voxel = createRawVoxel(chunkPos, new Vector3(voxelX, voxelY, voxelZ), relevantMetaInfo);
+                const voxel = createRawVoxel(
+                    chunkPos,
+                    new Vector3(voxelX, voxelY, voxelZ) as LocalChunkOffset,
+                    relevantMetaInfo
+                );
 
                 voxels.set(voxelX, voxelY, voxelZ, voxel);
                 empty = empty && voxel === 0;

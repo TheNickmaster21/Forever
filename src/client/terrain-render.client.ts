@@ -3,13 +3,17 @@ import { Air, BlockConfig, BlockType, BlockTypeAttribute } from 'shared/block';
 import {
     Chunk,
     chunkFromRawChunk,
+    ChunkPosition,
+    chunkPositionAndVoxelOffsetToWorkspacePosition,
     chunkPositionToVoxelPosition,
-    chunkPositionToWorldPosition,
+    chunkPositionToWorkspacePosition,
+    GlobalVoxelPosition,
     initialVoxelsFromEmpty,
     voxelPositionToChunkPosition,
     voxelPositionToVoxelOffset,
-    voxelPositionToWorldPosition,
-    worldPositionToChunkPosition
+    voxelPositionToWorkspacePosition,
+    WorkspacePosition,
+    workspacePositionToChunkPosition
 } from 'shared/chunk';
 import { BlockChangeReplicationEvent, FullChunkReplicationEvent } from 'shared/events';
 import { GlobalSettings } from 'shared/global-settings';
@@ -35,11 +39,11 @@ recyclingFolder.Name = 'RecyclingFolder';
 recyclingFolder.Parent = game.GetService('ReplicatedStorage');
 const recycledVoxels: Part[] = [];
 
-const knownChunks = new Simple3DArray<Chunk>();
-const fetchingChunks = new Simple3DArray<boolean>();
+const knownChunks = new Simple3DArray<Chunk, ChunkPosition>();
+const fetchingChunks = new Simple3DArray<boolean, ChunkPosition>();
 
-const renderingChunks = new Simple3DArray<boolean>();
-const renderedChunks = new Simple3DArray<boolean>();
+const renderingChunks = new Simple3DArray<boolean, ChunkPosition>();
+const renderedChunks = new Simple3DArray<boolean, ChunkPosition>();
 let renderedChunkModelCount = 0;
 
 const terrainScheduler = new LazyScheduler();
@@ -48,13 +52,13 @@ function characterPosition() {
     return rootPart.Position;
 }
 
-function characterAtChunk(): Vector3 {
-    return worldPositionToChunkPosition(characterPosition());
+function characterAtChunk(): ChunkPosition {
+    return workspacePositionToChunkPosition(characterPosition() as WorkspacePosition);
 }
 
 const replicationEventFunction = CrochetClient.getRemoteEventFunction(FullChunkReplicationEvent);
 
-function fetchChunk(vector: Vector3): void {
+function fetchChunk(vector: ChunkPosition): void {
     if (fetchingChunks.vectorGet(vector)) return;
 
     fetchingChunks.vectorSet(vector, true);
@@ -75,39 +79,66 @@ CrochetClient.bindRemoteEvent(BlockChangeReplicationEvent, (chunkPos, voxelPos, 
         return;
     }
 
-    if (chunk.empty) {
+    if (chunk.empty && blockType !== Air) {
         chunk.voxels = initialVoxelsFromEmpty();
+        chunk.empty = false;
     }
     chunk.voxels?.vectorSet(voxelPos, blockType);
 
-    // Ugly hack to rerender a chunk fully
-    const physicalChunk = chunkFolder.FindFirstChild(vectorName(chunkPos));
-    physicalChunk?.Destroy();
-    renderedChunks.vectorDelete(chunkPos);
-
-    print('bye chunk');
+    recaculateVoxelsAroundChangedVoxel(chunkPos.mul(GlobalSettings.chunkSize).add(voxelPos) as GlobalVoxelPosition);
 });
+
+function recaculateVoxelsAroundChangedVoxel(updatedVoxelworkspacePosition: GlobalVoxelPosition): void {
+    print('recalc', updatedVoxelworkspacePosition);
+    debug.profilebegin('Recalculate Voxels');
+    manhattanSpread(2, (offset) => {
+        const voxelPosition = updatedVoxelworkspacePosition.add(offset) as GlobalVoxelPosition;
+        print('spread', voxelPosition);
+        const chunkPosition = voxelPositionToChunkPosition(voxelPosition);
+        const chunk = knownChunks.vectorGet(chunkPosition);
+        const model = chunkFolder.FindFirstChild(vectorName(chunkPosition));
+        if (chunk === undefined || model === undefined) return;
+        const workspacePosition = voxelPositionToWorkspacePosition(voxelPosition);
+        const existingPart = model.FindFirstChild(vectorName(workspacePosition));
+        if (existingPart) {
+            existingPart.Destroy();
+            print('gone');
+        }
+        const voxel = chunk.voxels?.vectorGet(voxelPositionToVoxelOffset(voxelPosition));
+        if (voxel === undefined || voxel === 0) return;
+        const neighborsFull = eightNeighborOffsets.map(
+            (offset) => getVoxel(voxelPosition.add(offset) as GlobalVoxelPosition) !== 0
+        );
+        print(neighborsFull);
+        const emptyNeighbor = neighborsFull.includes(false);
+        if (emptyNeighbor) {
+            print('back');
+            createVoxel(workspacePosition, voxel, model as Model);
+        }
+    });
+    debug.profileend();
+}
 
 function vectorName(vector: Vector3): string {
     return `${vector.X},${vector.Y},${vector.Z}`;
 }
 
-function createVoxel(worldPosition: Vector3, blockType: BlockType, parent: Model) {
+function createVoxel(workspacePosition: WorkspacePosition, blockType: BlockType, parent: Model) {
     const voxel = recycledVoxels.pop() ?? new Instance('Part');
     // voxel.Transparency = 0.8;
-    voxel.Name = vectorName(worldPosition);
+    voxel.Name = vectorName(workspacePosition);
     voxel.Size = new Vector3(GlobalSettings.voxelSize, GlobalSettings.voxelSize, GlobalSettings.voxelSize);
     voxel.TopSurface = Enum.SurfaceType.Smooth;
     voxel.BottomSurface = Enum.SurfaceType.Smooth;
     voxel.Color = BlockConfig[blockType].color;
     voxel.Material = BlockConfig[blockType].material;
     voxel.Anchored = true;
-    voxel.Position = worldPosition;
+    voxel.Position = workspacePosition;
     CrochetClient.setAttribute(voxel, BlockTypeAttribute, blockType);
     voxel.Parent = parent;
 }
 
-function getVoxel(voxelPosition: Vector3): BlockType | undefined {
+function getVoxel(voxelPosition: GlobalVoxelPosition): BlockType | undefined {
     const chunk = knownChunks.vectorGet(voxelPositionToChunkPosition(voxelPosition));
     if (!chunk) return undefined;
     if (chunk.empty) return 0;
@@ -115,7 +146,7 @@ function getVoxel(voxelPosition: Vector3): BlockType | undefined {
     return chunk.voxels.vectorGet(voxelPositionToVoxelOffset(voxelPosition));
 }
 
-function createChunk(chunkPosition: Vector3) {
+function createChunk(chunkPosition: ChunkPosition) {
     // Avoid double rendering a chunk
     if (renderedChunks.vectorGet(chunkPosition) || renderingChunks.vectorGet(chunkPosition)) return;
 
@@ -131,7 +162,6 @@ function createChunk(chunkPosition: Vector3) {
     if (missingNeighbor) return;
 
     renderingChunks.vectorSet(chunkPosition, true);
-    // TODO Convert to evaluate function that diffs a chunk model with what it should look like and adds/removes parts as necesary
     terrainScheduler.queueTask(() => {
         debug.profilebegin('Render Chunk');
         const model = new Instance('Model');
@@ -140,19 +170,22 @@ function createChunk(chunkPosition: Vector3) {
         iterateInVectorRange(
             chunkPositionToVoxelPosition(chunkPosition),
             chunkPositionToVoxelPosition(chunkPosition).add(Vector3.one.mul(GlobalSettings.chunkSize)),
-            (voxelPosition) => {
+            (vector) => {
+                const voxelPosition = vector as GlobalVoxelPosition;
                 const voxel = chunk.voxels?.vectorGet(voxelPositionToVoxelOffset(voxelPosition));
                 if (voxel === undefined || voxel === 0) return;
-                const neighborsFull = eightNeighborOffsets.map((offset) => getVoxel(voxelPosition.add(offset)) !== 0);
+                const neighborsFull = eightNeighborOffsets.map(
+                    (offset) => getVoxel(voxelPosition.add(offset) as GlobalVoxelPosition) !== 0
+                );
                 const emptyNeighbor = neighborsFull.includes(false);
                 if (emptyNeighbor) {
-                    createVoxel(voxelPositionToWorldPosition(voxelPosition), voxel, model);
+                    createVoxel(voxelPositionToWorkspacePosition(voxelPosition), voxel, model);
                 }
             }
         );
 
         if (model.GetChildren().size() > 0) {
-            model.WorldPivot = new CFrame(chunkPositionToWorldPosition(chunkPosition));
+            model.WorldPivot = new CFrame(chunkPositionToWorkspacePosition(chunkPosition));
             model.Parent = chunkFolder;
             renderedChunkModelCount++;
         } else {
@@ -195,7 +228,7 @@ function maybeCollectGarbage() {
             });
             chunk.Destroy();
             const chunkCords = chunk.Name.split(',').map((cord) => tonumber(cord)!);
-            renderedChunks.vectorDelete(new Vector3(chunkCords[0], chunkCords[1], chunkCords[2]));
+            renderedChunks.vectorDelete(new Vector3(chunkCords[0], chunkCords[1], chunkCords[2]) as ChunkPosition);
             renderedChunkModelCount--;
         }
         pendingGarbageCollection -= target;
@@ -209,11 +242,11 @@ game.GetService('RunService').Stepped.Connect((t, deltaT) => {
     const chunkPos = characterAtChunk();
 
     manhattanSpread(GlobalSettings.shownRadius + 1, (offset) => {
-        fetchChunk(chunkPos.add(offset));
+        fetchChunk(chunkPos.add(offset) as ChunkPosition);
     });
 
     manhattanSpread(GlobalSettings.shownRadius, (offset) => {
-        createChunk(chunkPos.add(offset));
+        createChunk(chunkPos.add(offset) as ChunkPosition);
     });
 
     maybeCollectGarbage();
