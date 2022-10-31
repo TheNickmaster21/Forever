@@ -10,7 +10,7 @@ export const DarkStone: BlockType = 4;
 export type BlockType = 0 | 1 | 2 | 3 | 4;
 export const BlockTypes: BlockType[] = [0, 1, 2, 3, 4];
 
-function isBlockType(v: unknown): v is BlockType {
+export function isBlockType(v: unknown): v is BlockType {
     return BlockTypes.includes(v as BlockType);
 }
 

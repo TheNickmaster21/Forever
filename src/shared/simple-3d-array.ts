@@ -1,16 +1,16 @@
-export class Simple3DArray<V> {
-    private array: V[][][];
+export class Simple3DArray<T, V3 extends Vector3 = Vector3> {
+    private array: T[][][];
 
-    constructor(initialArray?: V[][][]) {
+    constructor(initialArray?: T[][][]) {
         this.array = initialArray ?? [];
     }
 
-    public set(keyX: number, keyY: number, keyZ: number, value: V): void {
+    public set(keyX: number, keyY: number, keyZ: number, value: T): void {
         this.checkAndCreateKeyXAndKeyY(keyX, keyY);
         this.array[keyX][keyY][keyZ] = value;
     }
 
-    public vectorSet(vector: Vector3, value: V): void {
+    public vectorSet(vector: V3, value: T): void {
         this.checkAndCreateForVector(vector);
         this.array[vector.X][vector.Y][vector.Z] = value;
     }
@@ -20,7 +20,7 @@ export class Simple3DArray<V> {
         delete this.array[keyX][keyY][keyZ];
     }
 
-    public vectorDelete(vector: Vector3): void {
+    public vectorDelete(vector: V3): void {
         this.checkAndCreateForVector(vector);
         delete this.array[vector.X][vector.Y][vector.Z];
     }
@@ -29,12 +29,12 @@ export class Simple3DArray<V> {
         this.array = [];
     }
 
-    public get(keyX: number, keyY: number, keyZ: number): V | undefined {
+    public get(keyX: number, keyY: number, keyZ: number): T | undefined {
         this.checkAndCreateKeyXAndKeyY(keyX, keyY);
         return this.array[keyX][keyY][keyZ];
     }
 
-    public vectorGet(vector: Vector3): V | undefined {
+    public vectorGet(vector: V3): T | undefined {
         this.checkAndCreateForVector(vector);
         return this.array[vector.X][vector.Y][vector.Z];
     }
@@ -44,12 +44,12 @@ export class Simple3DArray<V> {
         return this.array[keyX][keyY][keyZ] !== undefined;
     }
 
-    public vectorHas(vector: Vector3): boolean {
+    public vectorHas(vector: V3): boolean {
         this.checkAndCreateForVector(vector);
         return this.array[vector.X][vector.Y][vector.Z] !== undefined;
     }
 
-    public raw(): V[][][] {
+    public raw(): T[][][] {
         return this.array;
     }
 
@@ -62,7 +62,7 @@ export class Simple3DArray<V> {
         }
     }
 
-    private checkAndCreateForVector(vector: Vector3): void {
+    private checkAndCreateForVector(vector: V3): void {
         if (this.array[vector.X] === undefined) {
             this.array[vector.X] = [];
             this.array[vector.X][vector.Y] = [];

@@ -1,7 +1,18 @@
 import { CrochetServer } from '@rbxts/crochet';
 import { Air, BlockType, DarkStone, Dirt, Grass, LightStone } from 'shared/block';
-import { Chunk, chunkPositionToVoxelPosition, rawChunkFromChunk } from 'shared/chunk';
-import { ReplicationEvent } from 'shared/events';
+import {
+    Chunk,
+    ChunkPosition,
+    chunkPositionToVoxelPosition,
+    initialVoxelsFromEmpty,
+    LocalChunkOffset,
+    rawChunkFromChunk
+} from 'shared/chunk';
+import {
+    BlockChangeReplicationEvent,
+    BlockChangeRequestReplicationEvent,
+    FullChunkReplicationEvent
+} from 'shared/events';
 import { GlobalSettings } from 'shared/global-settings';
 import { LazyScheduler } from 'shared/lazy-scheduler';
 import { manhattanSpread } from 'shared/manhattan-spread';
@@ -9,7 +20,7 @@ import { Simple3DArray } from 'shared/simple-3d-array';
 
 const seed = os.time();
 
-const chunks = new Simple3DArray<Chunk>();
+const chunks = new Simple3DArray<Chunk, ChunkPosition>();
 
 interface Crater {
     size: number;
@@ -77,8 +88,8 @@ chunkFolder.Name = 'Chunks';
 chunkFolder.Parent = game.Workspace;
 
 function createRawVoxel(
-    chunkPos: Vector3,
-    voxelOffset: Vector3,
+    chunkPos: ChunkPosition,
+    voxelOffset: LocalChunkOffset,
     relevantMetaInfo: Simple3DArray<ChunkMetaInfo>
 ): BlockType {
     const absoluteVoxelPos = chunkPositionToVoxelPosition(chunkPos).add(voxelOffset);
@@ -113,7 +124,7 @@ function createRawVoxel(
     }
 }
 
-function createChunk(chunkPos: Vector3): Chunk {
+function createChunk(chunkPos: ChunkPosition): Chunk {
     debug.profilebegin('Create Chunk');
     const voxels = new Simple3DArray<BlockType>();
     const relevantMetaInfo = new Simple3DArray<ChunkMetaInfo>();
@@ -125,7 +136,11 @@ function createChunk(chunkPos: Vector3): Chunk {
     for (let voxelX = 0; voxelX < GlobalSettings.chunkSize; voxelX++) {
         for (let voxelY = 0; voxelY < GlobalSettings.chunkSize; voxelY++) {
             for (let voxelZ = 0; voxelZ < GlobalSettings.chunkSize; voxelZ++) {
-                const voxel = createRawVoxel(chunkPos, new Vector3(voxelX, voxelY, voxelZ), relevantMetaInfo);
+                const voxel = createRawVoxel(
+                    chunkPos,
+                    new Vector3(voxelX, voxelY, voxelZ) as LocalChunkOffset,
+                    relevantMetaInfo
+                );
 
                 voxels.set(voxelX, voxelY, voxelZ, voxel);
                 empty = empty && voxel === 0;
@@ -141,17 +156,34 @@ function createChunk(chunkPos: Vector3): Chunk {
 
 const generationScheduler = new LazyScheduler();
 
-CrochetServer.registerRemoteEvent(ReplicationEvent);
-const replicate = CrochetServer.getRemoteEventFunction(ReplicationEvent);
-CrochetServer.bindRemoteEvent(ReplicationEvent, (player, chunkPos, _value) => {
+CrochetServer.registerRemoteEvent(FullChunkReplicationEvent);
+const replicateChunk = CrochetServer.getRemoteEventFunction(FullChunkReplicationEvent);
+CrochetServer.bindRemoteEvent(FullChunkReplicationEvent, (player, chunkPos, _value) => {
     const chunk = chunks.vectorGet(chunkPos);
     if (chunk !== undefined) {
-        replicate(player, chunkPos, rawChunkFromChunk(chunk));
+        replicateChunk(player, chunkPos, rawChunkFromChunk(chunk));
     }
 
     generationScheduler.queueTask(() => {
-        replicate(player, chunkPos, rawChunkFromChunk(createChunk(chunkPos)));
+        replicateChunk(player, chunkPos, rawChunkFromChunk(createChunk(chunkPos)));
     });
+});
+
+CrochetServer.registerRemoteEvent(BlockChangeReplicationEvent);
+const replicateBlockChange = CrochetServer.getRemoteEventAllFunction(BlockChangeReplicationEvent);
+
+CrochetServer.registerRemoteEvent(BlockChangeRequestReplicationEvent);
+CrochetServer.bindRemoteEvent(BlockChangeRequestReplicationEvent, (player, chunkPos, voxelPos, blockType) => {
+    const chunk = chunks.vectorGet(chunkPos);
+    const voxel = chunk?.voxels?.vectorGet(voxelPos);
+
+    if (voxel !== undefined && voxel !== blockType) {
+        if (chunk?.empty) {
+            chunk.voxels = initialVoxelsFromEmpty();
+        }
+        chunk?.voxels?.vectorSet(voxelPos, blockType);
+        replicateBlockChange(chunkPos, voxelPos, blockType);
+    }
 });
 
 CrochetServer.start();
