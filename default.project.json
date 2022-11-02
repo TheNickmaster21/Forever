@@ -39,7 +39,8 @@
         "Workspace": {
             "$className": "Workspace",
             "$properties": {
-                "FilteringEnabled": true
+                "FilteringEnabled": true,
+                "FallenPartsDestroyHeight": -50000
             },
             "SpawnLocation": {
                 "$className": "SpawnLocation",

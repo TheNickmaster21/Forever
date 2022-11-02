@@ -28,18 +28,16 @@ interface Crater {
     stretch: Vector3;
 }
 
-// TODO
-interface Worm {
-    segments: {
-        startPosition: Vector3;
-        endPosition: Vector3;
+interface Cave {
+    nodes: {
+        position: Vector3;
         width: number;
     }[];
 }
 
 interface ChunkMetaInfo {
     crater: Crater | undefined;
-    caveWorm: Worm | undefined;
+    cave: Cave | undefined;
 }
 
 const MetaInfoDistance = 3;
@@ -50,7 +48,7 @@ function generateChunkMetaInfo(chunkPos: Vector3): ChunkMetaInfo {
     math.randomseed(metaSeed);
 
     let crater: Crater | undefined;
-    if (math.random() < 0.5) {
+    if (math.random() < GlobalSettings.craterFrequency) {
         crater = {
             size: math.random(2, 10),
             position: new Vector3(
@@ -62,14 +60,14 @@ function generateChunkMetaInfo(chunkPos: Vector3): ChunkMetaInfo {
         };
     }
 
-    let caveWorm: Worm | undefined;
-    if (math.random() < 0.05) {
-        caveWorm = { segments: [] };
+    let cave: Cave | undefined;
+    if (math.random() < GlobalSettings.caveFrequency) {
+        cave = { nodes: [] };
     }
 
     const chunk = {
         crater,
-        caveWorm
+        cave
     };
     chunkMetaInfos.vectorSet(chunkPos, chunk);
     return chunk;
@@ -79,6 +77,7 @@ function getChunkMetaInfo(chunkPos: Vector3): ChunkMetaInfo {
     let chunkMeta = chunkMetaInfos.vectorGet(chunkPos);
     if (chunkMeta === undefined) {
         chunkMeta = generateChunkMetaInfo(chunkPos);
+        chunkMetaInfos.vectorSet(chunkPos, chunkMeta);
     }
     return chunkMeta;
 }

@@ -4,7 +4,6 @@ import {
     Chunk,
     chunkFromRawChunk,
     ChunkPosition,
-    chunkPositionAndVoxelOffsetToWorkspacePosition,
     chunkPositionToVoxelPosition,
     chunkPositionToWorkspacePosition,
     GlobalVoxelPosition,
@@ -104,8 +103,13 @@ function recaculateVoxelsAroundChangedVoxel(updatedVoxelWorkspacePosition: Globa
         const voxelPosition = updatedVoxelWorkspacePosition.add(offset) as GlobalVoxelPosition;
         const chunkPosition = voxelPositionToChunkPosition(voxelPosition);
         const chunk = knownChunks.vectorGet(chunkPosition);
+        if (chunk === undefined) return;
         const model = chunkFolder.FindFirstChild(chunkModelName(chunkPosition));
-        if (chunk === undefined || model === undefined) return;
+        if (model === undefined) {
+            renderedChunks.vectorDelete(chunkPosition);
+            createChunk(chunkPosition);
+            return;
+        }
         const workspacePosition = voxelPositionToWorkspacePosition(voxelPosition);
         const voxel = chunk.voxels?.vectorGet(voxelPositionToVoxelOffset(voxelPosition));
         if (voxel === undefined || voxel === 0) return;
@@ -157,10 +161,9 @@ function createChunk(chunkPosition: ChunkPosition) {
     if (renderedChunks.vectorGet(chunkPosition) || renderingChunks.vectorGet(chunkPosition)) return;
 
     const chunk = knownChunks.vectorGet(chunkPosition);
-    if (!chunk) return;
+    if (chunk === undefined) return;
     if (chunk.empty) {
         renderedChunks.vectorSet(chunkPosition, true);
-        renderingChunks.vectorDelete(chunkPosition);
         return;
     }
     const neighborChunksExist = flat3DNeighborFunction(knownChunks, chunkPosition, (chunk) => chunk !== undefined);

@@ -1,5 +1,4 @@
 import { AttributeDefinition } from '@rbxts/crochet';
-import { TypeCheck } from '@rbxts/crochet/out/core';
 
 export const Air: BlockType = 0;
 export const Grass: BlockType = 1;
